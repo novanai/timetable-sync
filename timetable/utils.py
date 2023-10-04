@@ -38,8 +38,7 @@ def parse_weeks(weeks: str) -> list[int]:
     return final
 
 
-def generate_ical_file(timetable: models.CategoryTimetable) -> bytes:
-    events = timetable.events
+def generate_ical_file(events: list[models.Event]) -> bytes:
     events.sort(key=lambda x: x.start)
 
     calendar = icalendar.Calendar()  # pyright: ignore[reportPrivateImportUsage]

@@ -179,7 +179,6 @@ async def fetch_category_timetable(
             ],
         },
     )
-    print(cache)
     if cache:
         await utils.cache_data(category_identity, data)
 
