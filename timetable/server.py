@@ -1,7 +1,7 @@
 import datetime
-
+import sanic
 import aiohttp
-from sanic import Sanic, request, response
+from sanic import Sanic, request, response, exceptions
 
 from timetable import api, models, utils
 
@@ -93,3 +93,8 @@ async def gen_modules_ical(modules_str: str) -> bytes | response.HTTPResponse:
     print(f"Generated ical file for modules {', '.join(modules)}")
 
     return calendar
+
+@app.exception(exceptions.BadURL)
+async def handle_badurl(request: request.Request, exception: exceptions.BadURL):
+    print(f"BadURL: {request.ip}")
+    raise exception
