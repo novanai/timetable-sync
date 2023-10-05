@@ -1,9 +1,13 @@
 FROM python:3.11.5
 
-COPY requirements.txt ./
+RUN useradd -ms /bin/bash tt-sync
 
-RUN python3.11 -m pip install -r requirements.txt
+USER tt-sync
+WORKDIR /app
 
-COPY . ./
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
-CMD [ "sanic", "timetable.server", "--host", "0.0.0.0", "--port", "80"]
+COPY . .
+
+CMD [ "sanic", "timetable.server", "--host", "0.0.0.0", "--port", "80" ]
