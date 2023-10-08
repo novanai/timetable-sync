@@ -6,7 +6,7 @@ import os
 import typing
 
 import aiofile
-import icalendar
+import icalendar  # pyright: ignore[reportMissingTypeStubs]
 
 from timetable import models
 
@@ -43,23 +43,25 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
 
     calendar = icalendar.Calendar()  # pyright: ignore[reportPrivateImportUsage]
     calendar.add("METHOD", "PUBLISH")
-    calendar.add("PRODID", "-//-//DCU Timetables Reader//EN")
+    calendar.add("PRODID", "-//-//DCU Timetable Sync//EN")
     calendar.add("VERSION", "2.0")
 
-    for i, item in enumerate(events, start=1):
+    for item in events:
         event = icalendar.Event()  # pyright: ignore[reportPrivateImportUsage]
         event.add("UID", f"{item.identity}")
         event.add("DTSTAMP", datetime.datetime.now(datetime.UTC))
         event.add("LAST-MODIFIED", item.last_modified.astimezone(datetime.UTC))
         event.add("DTSTART", item.start.astimezone(datetime.UTC))
         event.add("DTEND", item.end.astimezone(datetime.UTC))
-        event.add(
-            "SUMMARY",
-            (item.module_name if item.module_name else item.name)
-            # + f" {item.description}"
-            # + " "
-            # + f"({item.locations[0]})" if item.locations else ""
-        )  # "[CA116] Computer Programming Lecture (HG20)"
+
+        if item.module_name:
+            try:
+                name = item.module_name.split("[")[0] + item.module_name.split("]")[1]
+            except IndexError:
+                name = item.module_name
+        else:
+            name = item.name
+        event.add("SUMMARY", name + f" ({item.description})")
         if item.locations:
             event.add(
                 "LOCATION",

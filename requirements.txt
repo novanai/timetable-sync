@@ -1,4 +1,5 @@
 aiohttp
 aiofile
+apscheduler
 icalendar
 sanic

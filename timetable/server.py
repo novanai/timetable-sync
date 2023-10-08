@@ -1,11 +1,49 @@
 import datetime
-import sanic
+import traceback
+
 import aiohttp
-from sanic import Sanic, request, response, exceptions
+import sanic
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from httptools.parser import errors
+from sanic import Sanic, exceptions, request, response
+from sanic.log import logger
 
 from timetable import api, models, utils
 
 app = Sanic("DCUTimetableAPI")
+
+
+fake_events: list[models.Event] = []
+scheduler = AsyncIOScheduler()
+
+
+async def add_fake_event():
+    fake_events.append(
+        models.Event(
+            identity=str(len(fake_events)) + "@fake-events-id",
+            start=datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=5),
+            end=datetime.datetime.now(datetime.UTC)
+            + datetime.timedelta(days=5, hours=1),
+            status_identity=str(len(fake_events)) + "@fake-events-status-id",
+            locations=None,
+            description=f"Test Event {len(fake_events)} Description",
+            name=f"Test Event {len(fake_events)} Name",
+            event_type="Lecture",
+            last_modified=datetime.datetime.now(datetime.UTC),
+            module_name="CA123",
+            staff_member="Someone",
+            weeks=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        )
+    )
+    logger.debug(f"Fake event added. Total: {len(fake_events)}")
+
+
+@app.before_server_start
+async def before_server(app: Sanic) -> None:
+    scheduler.add_job(add_fake_event, CronTrigger(minute=0))
+    scheduler.start()
+    logger.debug("Fake event task started")
 
 
 @app.get("/")
@@ -13,9 +51,22 @@ async def index(request: request.Request) -> response.HTTPResponse:
     return response.HTTPResponse(status=403)
 
 
+@app.get("/healthcheck")
+async def healthcheck(request: request.Request) -> response.HTTPResponse:
+    return response.HTTPResponse(status=200)
+
+
+@app.get("/test")
+async def test(request: request.Request) -> response.HTTPResponse:
+    logger.debug(f"[TEST] Received request from {request.ip}:{request.port}")
+
+    calendar = utils.generate_ical_file(fake_events)
+    return response.HTTPResponse(calendar, content_type="text/calendar")
+
+
 @app.get("/timetable")
-async def hello_world(request: request.Request):
-    print(f"Received request from {request.ip}")
+async def timetable(request: request.Request) -> response.HTTPResponse:
+    logger.debug(f"Received request from {request.ip}:{request.port}")
     try:
         course = request.args.get("course", None)
         modules = request.args.get("modules", None)
@@ -35,12 +86,12 @@ async def hello_world(request: request.Request):
         return response.HTTPResponse(calendar, content_type="text/calendar")
 
     except aiohttp.ClientResponseError as e:
-        print(e)
+        logger.info("aiohttp error:\n", "".join(traceback.format_exception(e)))
         return response.HTTPResponse(status=e.status)
 
 
 async def gen_course_ical(course_code: str) -> bytes | response.HTTPResponse:
-    print(f"Fetching timetable for course {course_code}")
+    logger.debug(f"Fetching timetable for course {course_code}")
 
     course = await api.fetch_category_results(
         models.CategoryType.PROGRAMMES_OF_STUDY, course_code, cache=False
@@ -60,7 +111,7 @@ async def gen_course_ical(course_code: str) -> bytes | response.HTTPResponse:
 
     calendar = utils.generate_ical_file(timetable.events)
 
-    print(f"Generated ical file for course {course.categories[0].name}")
+    logger.debug(f"Generated ical file for course {course.categories[0].name}")
 
     return calendar
 
@@ -68,7 +119,7 @@ async def gen_course_ical(course_code: str) -> bytes | response.HTTPResponse:
 async def gen_modules_ical(modules_str: str) -> bytes | response.HTTPResponse:
     modules = [m.strip() for m in modules_str.split(",")]
 
-    print(f"Fetching timetables for modules {', '.join(modules)}")
+    logger.debug(f"Fetching timetables for modules {', '.join(modules)}")
 
     events: list[models.Event] = []
 
@@ -90,11 +141,17 @@ async def gen_modules_ical(modules_str: str) -> bytes | response.HTTPResponse:
 
     calendar = utils.generate_ical_file(events)
 
-    print(f"Generated ical file for modules {', '.join(modules)}")
+    logger.debug(f"Generated ical file for modules {', '.join(modules)}")
 
     return calendar
 
-@app.exception(exceptions.BadURL)
-async def handle_badurl(request: request.Request, exception: exceptions.BadURL):
-    print(f"BadURL: {request.ip}")
-    raise exception
+
+@app.exception(errors.HttpParserInvalidURLError, exceptions.BadRequest)
+async def handle_badurl(
+    request: request.Request,
+    exception: errors.HttpParserInvalidURLError | exceptions.BadRequest,
+):
+    logger.exception(
+        f"Bad Request Exception: {type(exception)}\nIP: {request.ip}\nPath: {request.server_path}\nHeaders: {request.headers}",
+        exc_info=exception,
+    )
