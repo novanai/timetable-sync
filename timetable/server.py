@@ -3,64 +3,15 @@ import traceback
 
 import aiohttp
 import blacksheep
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
 
-from timetable import api, models, utils, logger
+from timetable import api, logger, models, utils
 
 app = blacksheep.Application(debug=True)
-
-
-fake_events: list[models.Event] = []
-scheduler = AsyncIOScheduler()
-
-
-async def add_fake_event():
-    fake_events.append(
-        models.Event(
-            identity=str(len(fake_events)) + "@fake-events-id",
-            start=datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=5),
-            end=datetime.datetime.now(datetime.UTC)
-            + datetime.timedelta(days=5, hours=1),
-            status_identity=str(len(fake_events)) + "@fake-events-status-id",
-            locations=None,
-            description=f"Test Event {len(fake_events)} Description",
-            name=f"Test Event {len(fake_events)} Name",
-            event_type="Lecture",
-            last_modified=datetime.datetime.now(datetime.UTC),
-            module_name="CA123",
-            staff_member="Someone",
-            weeks=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-        )
-    )
-    logger.info(f"Fake event added. Total: {len(fake_events)}")
-
-
-async def before_server(app: blacksheep.Application) -> None:
-    scheduler.add_job(add_fake_event, CronTrigger(minute=0))  # pyright: ignore[reportUnknownMemberType]
-    scheduler.start()
-    logger.info("Fake event task started")
-
-
-app.on_start += before_server
-
-
-@app.route("/")
-async def index(request: blacksheep.Request) -> blacksheep.Response:
-    return blacksheep.Response(status=403)
 
 
 @app.route("/healthcheck")
 async def healthcheck(request: blacksheep.Request) -> blacksheep.Response:
     return blacksheep.Response(status=200)
-
-
-@app.route("/test")
-async def test(request: blacksheep.Request) -> blacksheep.Response:
-    calendar = utils.generate_ical_file(fake_events)
-    return blacksheep.Response(
-        200, content=blacksheep.Content(content_type=b"text/calendar", data=calendar)
-    )
 
 
 @app.route("/api")
@@ -165,12 +116,13 @@ async def gen_modules_ical(modules_str: str) -> bytes | blacksheep.Response:
 
     return calendar
 
+
 @app.exception_handler(aiohttp.ClientResponseError)
 async def handle_badurl(
     request: blacksheep.Request,
     exception: aiohttp.ClientResponseError,
 ):
-    logger.error(
-        traceback.format_exception(exception)
+    logger.error(traceback.format_exception(exception))
+    return blacksheep.Response(
+        500, content=blacksheep.Content(b"text/plain", b"500 Internal Server Error")
     )
-    return blacksheep.Response(500, content=blacksheep.Content(b"text/plain", b"500 Internal Server Error"))
