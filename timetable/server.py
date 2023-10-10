@@ -2,16 +2,13 @@ import datetime
 import traceback
 
 import aiohttp
-import sanic
+import blacksheep
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from httptools.parser import errors
-from sanic import Sanic, exceptions, request, response
-from sanic.log import logger
 
-from timetable import api, models, utils
+from timetable import api, models, utils, logger
 
-app = Sanic("DCUTimetableAPI")
+app = blacksheep.Application(debug=True)
 
 
 fake_events: list[models.Event] = []
@@ -36,69 +33,86 @@ async def add_fake_event():
             weeks=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
         )
     )
-    logger.debug(f"Fake event added. Total: {len(fake_events)}")
+    logger.info(f"Fake event added. Total: {len(fake_events)}")
 
 
-@app.before_server_start
-async def before_server(app: Sanic) -> None:
-    scheduler.add_job(add_fake_event, CronTrigger(minute=0))
+async def before_server(app: blacksheep.Application) -> None:
+    scheduler.add_job(add_fake_event, CronTrigger(minute=0))  # pyright: ignore[reportUnknownMemberType]
     scheduler.start()
-    logger.debug("Fake event task started")
+    logger.info("Fake event task started")
 
 
-@app.get("/")
-async def index(request: request.Request) -> response.HTTPResponse:
-    return response.HTTPResponse(status=403)
+app.on_start += before_server
 
 
-@app.get("/healthcheck")
-async def healthcheck(request: request.Request) -> response.HTTPResponse:
-    return response.HTTPResponse(status=200)
+@app.route("/")
+async def index(request: blacksheep.Request) -> blacksheep.Response:
+    return blacksheep.Response(status=403)
 
 
-@app.get("/test")
-async def test(request: request.Request) -> response.HTTPResponse:
-    logger.debug(f"[TEST] Received request from {request.ip}:{request.port}")
+@app.route("/healthcheck")
+async def healthcheck(request: blacksheep.Request) -> blacksheep.Response:
+    return blacksheep.Response(status=200)
 
+
+@app.route("/test")
+async def test(request: blacksheep.Request) -> blacksheep.Response:
     calendar = utils.generate_ical_file(fake_events)
-    return response.HTTPResponse(calendar, content_type="text/calendar")
+    return blacksheep.Response(
+        200, content=blacksheep.Content(content_type=b"text/calendar", data=calendar)
+    )
 
 
-@app.get("/timetable")
-async def timetable(request: request.Request) -> response.HTTPResponse:
-    logger.debug(f"Received request from {request.ip}:{request.port}")
-    try:
-        course = request.args.get("course", None)
-        modules = request.args.get("modules", None)
-        if not course and not modules:
-            return response.HTTPResponse(b"No course or modules provided.", 400)
-        elif course and modules:
-            return response.HTTPResponse(
-                b"Cannot provide both course and modules.", 400
-            )
+@app.route("/api")
+async def timetable_api(request: blacksheep.Request) -> blacksheep.Response:
+    course = request.query.get("course", None)
+    modules = request.query.get("modules", None)
+    if not course and not modules:
+        return blacksheep.Response(
+            400,
+            content=blacksheep.Content(
+                content_type=b"text/plain", data=b"No course or modules provided."
+            ),
+        )
+    elif course and modules:
+        return blacksheep.Response(
+            400,
+            content=blacksheep.Content(
+                content_type=b"text/plain",
+                data=b"Cannot provide both course and modules.",
+            ),
+        )
+    if course:
+        calendar = await gen_course_ical(course[0])
+    else:
+        assert modules
+        calendar = await gen_modules_ical(modules[0])
 
-        if course:
-            calendar = await gen_course_ical(course)
-        else:
-            assert modules
-            calendar = await gen_modules_ical(modules)
+    if isinstance(calendar, blacksheep.Response):
+        return calendar
 
-        return response.HTTPResponse(calendar, content_type="text/calendar")
+    return blacksheep.Response(
+        200,
+        content=blacksheep.Content(
+            b"text/calendar",
+            data=calendar,
+        ),
+    )
 
-    except aiohttp.ClientResponseError as e:
-        logger.info("aiohttp error:\n", "".join(traceback.format_exception(e)))
-        return response.HTTPResponse(status=e.status)
 
-
-async def gen_course_ical(course_code: str) -> bytes | response.HTTPResponse:
-    logger.debug(f"Fetching timetable for course {course_code}")
+async def gen_course_ical(course_code: str) -> bytes | blacksheep.Response:
+    logger.info(f"Fetching timetable for course {course_code}")
 
     course = await api.fetch_category_results(
         models.CategoryType.PROGRAMMES_OF_STUDY, course_code, cache=False
     )
     if not course.categories:
-        return response.HTTPResponse(
-            f"Invalid course code '{course_code}'.".encode(), 400
+        return blacksheep.Response(
+            400,
+            content=blacksheep.Content(
+                content_type=b"text/plain",
+                data=f"Invalid course code '{course_code}'.".encode(),
+            ),
         )
 
     timetable = await api.fetch_category_timetable(
@@ -111,15 +125,15 @@ async def gen_course_ical(course_code: str) -> bytes | response.HTTPResponse:
 
     calendar = utils.generate_ical_file(timetable.events)
 
-    logger.debug(f"Generated ical file for course {course.categories[0].name}")
+    logger.info(f"Generated ical file for course {course.categories[0].name}")
 
     return calendar
 
 
-async def gen_modules_ical(modules_str: str) -> bytes | response.HTTPResponse:
+async def gen_modules_ical(modules_str: str) -> bytes | blacksheep.Response:
     modules = [m.strip() for m in modules_str.split(",")]
 
-    logger.debug(f"Fetching timetables for modules {', '.join(modules)}")
+    logger.info(f"Fetching timetables for modules {', '.join(modules)}")
 
     events: list[models.Event] = []
 
@@ -128,7 +142,13 @@ async def gen_modules_ical(modules_str: str) -> bytes | response.HTTPResponse:
             models.CategoryType.MODULES, mod, cache=False
         )
         if not module.categories:
-            return response.HTTPResponse(f"Invalid module code '{mod}'.".encode(), 400)
+            return blacksheep.Response(
+                400,
+                content=blacksheep.Content(
+                    content_type=b"text/plain",
+                    data=f"Invalid module code '{mod}'.".encode(),
+                ),
+            )
 
         timetable = await api.fetch_category_timetable(
             models.CategoryType.MODULES,
@@ -141,17 +161,16 @@ async def gen_modules_ical(modules_str: str) -> bytes | response.HTTPResponse:
 
     calendar = utils.generate_ical_file(events)
 
-    logger.debug(f"Generated ical file for modules {', '.join(modules)}")
+    logger.info(f"Generated ical file for modules {', '.join(modules)}")
 
     return calendar
 
-
-@app.exception(errors.HttpParserInvalidURLError, exceptions.BadRequest)
+@app.exception_handler(aiohttp.ClientResponseError)
 async def handle_badurl(
-    request: request.Request,
-    exception: errors.HttpParserInvalidURLError | exceptions.BadRequest,
+    request: blacksheep.Request,
+    exception: aiohttp.ClientResponseError,
 ):
-    logger.exception(
-        f"Bad Request Exception: {type(exception)}\nIP: {request.ip}\nPath: {request.server_path}\nHeaders: {request.headers}",
-        exc_info=exception,
+    logger.error(
+        traceback.format_exception(exception)
     )
+    return blacksheep.Response(500, content=blacksheep.Content(b"text/plain", b"500 Internal Server Error"))

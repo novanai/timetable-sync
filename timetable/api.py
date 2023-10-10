@@ -6,9 +6,8 @@ import typing
 
 import aiofile
 import aiohttp
-from sanic.log import logger
 
-from timetable import models, utils
+from timetable import models, utils, logger
 
 BASE_URL = "https://scientia-eu-v4-api-d1-03.azurewebsites.net/api/Public"
 
@@ -34,7 +33,7 @@ async def get_data(
         if not res.ok:
             if res.content_type == "application/json":
                 data = await res.json()
-                logger.debug("API Error:", data)
+                logger.error("API Error:", data)
 
             res.raise_for_status()
 
@@ -80,9 +79,7 @@ async def fetch_category_results(
         count = data["Count"]
         current_page += 1
 
-        logger.debug(
-            f"Fetched page {current_page}/{total_pages} of for query '{query}'"
-        )
+        logger.info(f"Fetched page {current_page}/{total_pages} of for query '{query}'")
 
     if not query and cache:
         await utils.cache_data(

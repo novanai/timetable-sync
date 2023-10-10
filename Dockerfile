@@ -10,4 +10,4 @@ COPY . .
 RUN useradd -ms /bin/bash tt-sync
 USER tt-sync
 
-CMD [ "sanic", "timetable.server", "--host", "0.0.0.0", "--port", "80", "--debug" ]
+CMD [ "python3", "-m", "timetable" ]

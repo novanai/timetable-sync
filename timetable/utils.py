@@ -74,10 +74,6 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
         event.add(
             "DESCRIPTION",
             f"{item.description}, {item.event_type}"
-            # + (
-            #     f" - {', '.join(str(loc).split('.')[1] for loc in item.locations)}"
-            #     if item.locations else ""
-            # )
         )
         event.add("CLASS", "PUBLIC")
         calendar.add_component(event)
