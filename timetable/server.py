@@ -16,8 +16,14 @@ view = use_templates(
 
 
 @app.on_start
-async def cache_categories(app: blacksheep.Application) -> tuple[models.CategoryResults, models.CategoryResults]:
-    if not (courses := await api.get_category_results(models.CategoryType.PROGRAMMES_OF_STUDY)):
+async def cache_categories(
+    app: blacksheep.Application,
+) -> tuple[models.CategoryResults, models.CategoryResults]:
+    if not (
+        courses := await api.get_category_results(
+            models.CategoryType.PROGRAMMES_OF_STUDY
+        )
+    ):
         logger.info("Caching Programmes of Study")
         courses = await api.fetch_category_results(
             models.CategoryType.PROGRAMMES_OF_STUDY, cache=True
@@ -25,7 +31,9 @@ async def cache_categories(app: blacksheep.Application) -> tuple[models.Category
 
     if not (modules := await api.get_category_results(models.CategoryType.MODULES)):
         logger.info("Caching Modules")
-        modules = await api.fetch_category_results(models.CategoryType.MODULES, cache=True)
+        modules = await api.fetch_category_results(
+            models.CategoryType.MODULES, cache=True
+        )
 
     return courses, modules
 
@@ -42,7 +50,7 @@ async def timetable_ui(request: blacksheep.Request) -> blacksheep.Response:
     if not courses or not modules:
         courses, modules = await cache_categories(app)
 
-    return await view( # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+    return await view(  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
         "timetable",
         {
             "courses": [c.name for c in courses.categories],
@@ -56,9 +64,10 @@ async def timetable_ui(request: blacksheep.Request) -> blacksheep.Response:
         },
     )
 
+
 @app.route("/howto")
 async def howto(request: blacksheep.Request) -> blacksheep.Response:
-    return await view( # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+    return await view(  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
         "howto",
         {},
     )

@@ -12,6 +12,9 @@ from timetable import utils
 LOCATION_REGEX = re.compile(
     r"^((?P<campus>[A-Z]{3})\.)?(?P<building>VB|[A-Z][AC-FH-Z]?)(?P<floor>[BG1-9])(?P<room>[0-9\-A-Za-z ()]+)$"
 )
+EVENT_NAME_REGEX = re.compile(
+    r"^(?P<courses>([A-Za-z0-9]+\/?)+)(\[|\()(?P<semester>[0-2])(\]|\))(?P<delivery>OC|AY|SY)\/(?P<activity>P|L|T|W|S)[0-9]\/(?P<group>[0-9]{1,2}).*$"
+)
 
 CAMPUSES = {"AHC": "All Hallows", "GLA": "Glasnevin", "SPC": "St Patrick's"}
 
@@ -73,6 +76,31 @@ class CategoryType(enum.Enum):
     MODULES = "525fe79b-73c3-4b5c-8186-83c652b3adcc"
     LOCATIONS = "1e042cb1-547d-41d4-ae93-a1f2c3d34538"
     PROGRAMMES_OF_STUDY = "241e4d36-60e0-49f8-b27e-99416745d98d"
+
+
+class DisplayEnum(enum.Enum):
+    def display(self) -> str:
+        return self.name.replace("_", " ").title()
+
+
+class Semester(DisplayEnum):
+    ALL_YEAR = 0
+    SEMESTER_1 = 1
+    SEMESTER_2 = 2
+
+
+class DeliveryType(DisplayEnum):
+    ON_CAMPUS = "OC"
+    ASYNCHRONOUS = "AY"
+    SYNCHRONOUS = "SY"
+
+
+class ActivityType(DisplayEnum):
+    PRACTICAL = "P"
+    LECTURE = "L"
+    TUTORIAL = "T"
+    WORKSHOP = "W"
+    SEMINAR = "S"
 
 
 class ModelBase(abc.ABC):
@@ -157,6 +185,11 @@ class Event(ModelBase):
     module_name: str | None
     staff_member: str | None
     weeks: list[int] | None
+    course_codes: list[str] | None
+    semester: Semester | None
+    delivery_type: DeliveryType | None
+    activity_type: ActivityType | None
+    group: int | None
 
     @classmethod
     def from_payload(cls, payload: dict[str, typing.Any]) -> typing.Self:
@@ -169,25 +202,43 @@ class Event(ModelBase):
         for item in payload["ExtraProperties"]:
             rank = item["Rank"]
             if rank == 1:
-                extra_data["module_name"] = item["Value"]
+                extra_data["module_name"] = re.sub(r"\[.*?\]", "", item["Value"])
             elif rank == 2:
                 extra_data["staff_member"] = item["Value"]
             elif rank == 3:
                 extra_data["weeks"] = utils.parse_weeks(item["Value"])
 
+        if match := EVENT_NAME_REGEX.match(payload["Name"]):
+            courses = match.group("courses")
+            semester = Semester(int(match.group("semester")))
+            delivery_type = DeliveryType(match.group("delivery"))
+            activity_type = ActivityType(match.group("activity"))
+            group = int(match.group("group"))
+        else:
+            courses = semester = delivery_type = activity_type = group = None
+
         return cls(
-            payload["Identity"],
-            datetime.datetime.fromisoformat(payload["StartDateTime"]),
-            datetime.datetime.fromisoformat(payload["EndDateTime"]),
-            payload["StatusIdentity"],
-            Location.from_payloads(payload)
+            identity=payload["Identity"],
+            start=datetime.datetime.fromisoformat(payload["StartDateTime"]),
+            end=datetime.datetime.fromisoformat(payload["EndDateTime"]),
+            status_identity=payload["StatusIdentity"],
+            locations=Location.from_payloads(payload)
             if payload["Location"] is not None
             else None,
-            payload["Description"],
-            payload["Name"],
-            payload["EventType"],
-            datetime.datetime.fromisoformat(payload["LastModified"]),
-            **extra_data,
+            description=payload["Description"],
+            name=payload["Name"],
+            event_type=payload["EventType"],
+            last_modified=datetime.datetime.fromisoformat(payload["LastModified"]),
+            module_name=extra_data["module_name"],
+            staff_member=extra_data["staff_member"],
+            weeks=extra_data["weeks"],
+            course_codes=[course for course in courses.split("/") if course.strip()]
+            if courses
+            else None,
+            semester=semester,
+            delivery_type=delivery_type,
+            activity_type=activity_type,
+            group=group,
         )
 
 

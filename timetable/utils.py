@@ -54,24 +54,58 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
         event.add("DTSTART", item.start.astimezone(datetime.UTC))
         event.add("DTEND", item.end.astimezone(datetime.UTC))
 
-        if item.module_name:
-            try:
-                name = item.module_name.split("[")[0] + item.module_name.split("]")[1]
-            except IndexError:
-                name = item.module_name
-        else:
-            name = item.name
-        event.add("SUMMARY", name + f" ({item.description})")
-        if item.locations:
+        name = item.module_name or item.name
+        event.add(
+            "SUMMARY",
+            name + (f" ({ac.display()})" if (ac := item.activity_type) else ""),
+        )
+
+        if item.locations and len(item.locations) > 1:
+            locations: dict[tuple[str, str], list[str]] = {}
+
+            for loc in item.locations:
+                room = str(loc).split(".")[1]
+
+                if (loc.campus, loc.building) in locations:
+                    locations[(loc.campus, loc.building)].append(room)
+                else:
+                    locations[(loc.campus, loc.building)] = [room]
+
+            locs: list[str] = []
+            for (campus, building), rooms in locations.items():
+                building = models.BUILDINGS[campus][building]
+                campus = models.CAMPUSES[campus]
+                locs.append(f"{', '.join(rooms)} ({building}, {campus})")
+
+            final = ", ".join(locs)
+
             event.add(
                 "LOCATION",
-                ", ".join(str(loc).split(".")[1] for loc in item.locations)
-                + f" ({models.BUILDINGS[item.locations[0].campus][item.locations[0].building]}"
-                + f", {models.CAMPUSES[item.locations[0].campus]})",
+                final,
+            )
+        elif item.locations:
+            loc = item.locations[0]
+            event.add(
+                "LOCATION",
+                f"{str(loc).split('.')[1]} ({models.BUILDINGS[loc.campus][loc.building]}, {models.CAMPUSES[loc.campus]})",
             )
         else:
             event.add("LOCATION", item.event_type)
-        event.add("DESCRIPTION", f"{item.description}, {item.event_type}")
+
+        if not item.activity_type:
+            description = item.description
+        elif (
+            item.activity_type
+            and item.description
+            and item.description.lower() != item.activity_type.display().lower()
+        ):
+            description = f"{item.description}, {item.activity_type.display()}"
+        else:
+            description = item.activity_type.display()
+
+        event_type = dt.display() if (dt := item.delivery_type) else item.event_type
+
+        event.add("DESCRIPTION", f"{description}, {event_type}")
         event.add("CLASS", "PUBLIC")
         calendar.add_component(event)
 
