@@ -8,6 +8,7 @@ RUN pip install -r requirements.txt
 COPY . .
 
 RUN useradd -ms /bin/bash tt-sync
+RUN chown -R tt-sync /app
 USER tt-sync
 
 CMD [ "python3", "-m", "timetable" ]

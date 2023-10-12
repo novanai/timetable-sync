@@ -3,15 +3,65 @@ import traceback
 
 import aiohttp
 import blacksheep
+from blacksheep.server.templating import use_templates
+from jinja2 import PackageLoader
 
 from timetable import api, logger, models, utils
 
 app = blacksheep.Application(debug=True)
 
+view = use_templates(
+    app, loader=PackageLoader("timetable", "templates"), enable_async=True
+)
+
+
+@app.on_start
+async def cache_categories(app: blacksheep.Application) -> tuple[models.CategoryResults, models.CategoryResults]:
+    if not (courses := await api.get_category_results(models.CategoryType.PROGRAMMES_OF_STUDY)):
+        logger.info("Caching Programmes of Study")
+        courses = await api.fetch_category_results(
+            models.CategoryType.PROGRAMMES_OF_STUDY, cache=True
+        )
+
+    if not (modules := await api.get_category_results(models.CategoryType.MODULES)):
+        logger.info("Caching Modules")
+        modules = await api.fetch_category_results(models.CategoryType.MODULES, cache=True)
+
+    return courses, modules
+
 
 @app.route("/healthcheck")
 async def healthcheck(request: blacksheep.Request) -> blacksheep.Response:
     return blacksheep.Response(status=200)
+
+
+@app.route("/timetable")
+async def timetable_ui(request: blacksheep.Request) -> blacksheep.Response:
+    courses = await api.get_category_results(models.CategoryType.PROGRAMMES_OF_STUDY)
+    modules = await api.get_category_results(models.CategoryType.MODULES)
+    if not courses or not modules:
+        courses, modules = await cache_categories(app)
+
+    return await view( # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+        "timetable",
+        {
+            "courses": [c.name for c in courses.categories],
+            "modules": [
+                {
+                    "name": m.name,
+                    "value": m.code,
+                }
+                for m in modules.categories
+            ],
+        },
+    )
+
+@app.route("/howto")
+async def howto(request: blacksheep.Request) -> blacksheep.Response:
+    return await view( # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+        "howto",
+        {},
+    )
 
 
 @app.route("/api")

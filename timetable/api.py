@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import difflib
 import json
@@ -58,28 +59,40 @@ async def fetch_category_results(
     !!! NOTE
         If a course code is specified, the results will not be cached.
     """
-    total_pages = 0
-    current_page = 0
-    count = 0
     results: list[dict[str, typing.Any]] = []
 
-    params = {
-        "pageNumber": str(current_page + 1),
+    params: dict[str, str] = {
+        "pageNumber": "1",
+        "query": query or "",
     }
-    if query:
-        params["query"] = query
 
-    while current_page < total_pages or current_page == 0:
-        data = await get_data(
-            f"CategoryTypes/{identity.value}/Categories/FilterWithCache/{INSTITUTION_IDENTITY}",
-            params=params,
+    data = await get_data(
+        f"CategoryTypes/{identity.value}/Categories/FilterWithCache/{INSTITUTION_IDENTITY}",
+        params=params,
+    )
+    total_pages = data["TotalPages"]
+    results.extend(data["Results"])
+    count = data["Count"]
+
+    if total_pages > 1:
+        data = await asyncio.gather(
+            *(
+                get_data(
+                    f"CategoryTypes/{identity.value}/Categories/FilterWithCache/{INSTITUTION_IDENTITY}",
+                    params={
+                        "pageNumber": str(i),
+                        "query": query or "",
+                    },
+                )
+                for i in range(2, total_pages + 1)
+            ),
+            return_exceptions=True,
         )
-        total_pages = data["TotalPages"]
-        results.extend(data["Results"])
-        count = data["Count"]
-        current_page += 1
+        for d in data:
+            if isinstance(d, Exception):
+                raise d
 
-        logger.info(f"Fetched page {current_page}/{total_pages} of for query '{query}'")
+            results.extend(d["Results"])
 
     if not query and cache:
         await utils.cache_data(
@@ -95,7 +108,7 @@ async def fetch_category_results(
 
 
 async def get_category_results(
-    identity: models.CategoryType, query: str | None
+    identity: models.CategoryType, query: str | None = None
 ) -> models.CategoryResults | None:
     if not os.path.exists(f"./cache/{identity.value}.json"):
         return None

@@ -43,7 +43,7 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
 
     calendar = icalendar.Calendar()  # pyright: ignore[reportPrivateImportUsage]
     calendar.add("METHOD", "PUBLISH")
-    calendar.add("PRODID", "-//-//DCU Timetable Sync//EN")
+    calendar.add("PRODID", "-//nova@redbrick.dcu.ie//TimetableSync//EN")
     calendar.add("VERSION", "2.0")
 
     for item in events:

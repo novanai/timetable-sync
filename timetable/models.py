@@ -102,15 +102,25 @@ class Category(ModelBase):
     parent_categories: list[str]
     identity: str
     name: str
+    code: str
 
     @classmethod
     def from_payload(cls, payload: dict[str, typing.Any]) -> typing.Self:
+        cat_type = CategoryType(payload["CategoryTypeIdentity"])
+        name: str = payload["Name"]
+
+        if cat_type is CategoryType.MODULES:
+            code = name.split(" ")[0]
+        else:
+            code = name
+
         return cls(
             payload["Description"],
-            CategoryType(payload["CategoryTypeIdentity"]),
+            cat_type,
             payload["ParentCategoryIdentities"],
             payload["Identity"],
-            payload["Name"],
+            name,
+            code,
         )
 
 
