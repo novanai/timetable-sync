@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import os
+import re
 import typing
 
 import aiofile
@@ -42,22 +43,49 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
     events.sort(key=lambda x: x.start)
 
     calendar = icalendar.Calendar()  # pyright: ignore[reportPrivateImportUsage]
-    calendar.add("METHOD", "PUBLISH")
-    calendar.add("PRODID", "-//nova@redbrick.dcu.ie//TimetableSync//EN")
-    calendar.add("VERSION", "2.0")
+    calendar.add("METHOD", "PUBLISH")  # pyright: ignore[reportUnknownMemberType]
+    calendar.add(  # pyright: ignore[reportUnknownMemberType]
+        "PRODID", "-//nova@redbrick.dcu.ie//TimetableSync//EN"
+    )
+    calendar.add("VERSION", "2.0")  # pyright: ignore[reportUnknownMemberType]
 
     for item in events:
         event = icalendar.Event()  # pyright: ignore[reportPrivateImportUsage]
-        event.add("UID", f"{item.identity}")
-        event.add("DTSTAMP", datetime.datetime.now(datetime.UTC))
-        event.add("LAST-MODIFIED", item.last_modified.astimezone(datetime.UTC))
-        event.add("DTSTART", item.start.astimezone(datetime.UTC))
-        event.add("DTEND", item.end.astimezone(datetime.UTC))
+        event.add("UID", item.identity)  # pyright: ignore[reportUnknownMemberType]
+        event.add(  # pyright: ignore[reportUnknownMemberType]
+            "DTSTAMP", datetime.datetime.now(datetime.UTC)
+        )
+        event.add(  # pyright: ignore[reportUnknownMemberType]
+            "LAST-MODIFIED", item.last_modified.astimezone(datetime.UTC)
+        )
+        event.add(  # pyright: ignore[reportUnknownMemberType]
+            "DTSTART", item.start.astimezone(datetime.UTC)
+        )
+        event.add(  # pyright: ignore[reportUnknownMemberType]
+            "DTEND", item.end.astimezone(datetime.UTC)
+        )
 
-        name = item.module_name or item.name
-        event.add(
-            "SUMMARY",
-            name + (f" ({ac.display()})" if (ac := item.activity_type) else ""),
+        name = re.sub(r"\[.*?\]", "", n) if (n := item.module_name) else item.name
+        # if "lab" in description, then ac = "lab" else "ac" for both summary and description fields
+
+        if item.description and item.description.lower().strip() == "lab":
+            ac = "Lab"
+        elif item.activity_type:
+            ac = item.activity_type.display()
+        else:
+            ac = ""
+
+        if ac and (group := item.group) and isinstance(group, str):
+            summary = f"({ac}, Group {group})"
+        elif ac:
+            summary = f"({ac})"
+        elif (group := item.group) and isinstance(group, str):
+            summary = f"(Group {group})"
+        else:
+            summary = ""
+
+        event.add(  # pyright: ignore[reportUnknownMemberType]
+            "SUMMARY", (name + (f" {summary}" if summary else "")).strip()
         )
 
         if item.locations and len(item.locations) > 1:
@@ -79,34 +107,34 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
 
             final = ", ".join(locs)
 
-            event.add(
+            event.add(  # pyright: ignore[reportUnknownMemberType]
                 "LOCATION",
                 final,
             )
         elif item.locations:
             loc = item.locations[0]
-            event.add(
+            event.add(  # pyright: ignore[reportUnknownMemberType]
                 "LOCATION",
                 f"{str(loc).split('.')[1]} ({models.BUILDINGS[loc.campus][loc.building]}, {models.CAMPUSES[loc.campus]})",
             )
         else:
-            event.add("LOCATION", item.event_type)
+            event.add(  # pyright: ignore[reportUnknownMemberType]
+                "LOCATION", item.event_type
+            )
 
-        if not item.activity_type:
+        if not ac:
             description = item.description
-        elif (
-            item.activity_type
-            and item.description
-            and item.description.lower() != item.activity_type.display().lower()
-        ):
-            description = f"{item.description}, {item.activity_type.display()}"
+        elif ac and item.description and item.description.lower() != ac.lower():
+            description = f"{item.description}, {ac}"
         else:
-            description = item.activity_type.display()
+            description = ac
 
         event_type = dt.display() if (dt := item.delivery_type) else item.event_type
 
-        event.add("DESCRIPTION", f"{description}, {event_type}")
-        event.add("CLASS", "PUBLIC")
-        calendar.add_component(event)
+        event.add(  # pyright: ignore[reportUnknownMemberType]
+            "DESCRIPTION", f"{description}, {event_type}"
+        )
+        event.add("CLASS", "PUBLIC")  # pyright: ignore[reportUnknownMemberType]
+        calendar.add_component(event)  # pyright: ignore[reportUnknownMemberType]
 
     return calendar.to_ical()

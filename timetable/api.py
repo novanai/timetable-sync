@@ -18,33 +18,47 @@ LOCATIONS = "1e042cb1-547d-41d4-ae93-a1f2c3d34538"
 PROGRAMMES_OF_STUDY = "241e4d36-60e0-49f8-b27e-99416745d98d"
 
 
+session: aiohttp.ClientSession | None = None
+
+
 async def get_data(
     path: str,
     params: dict[str, str] | None = None,
     json_data: dict[str, typing.Any] | None = None,
 ) -> dict[str, typing.Any]:
     """Get data from the api."""
-    async with aiohttp.request(
-        "POST",
-        f"{BASE_URL}/{path}",
-        params=params,
-        headers={"Authorization": "Anonymous", "Content-type": "application/json"},
-        json=json_data,
-    ) as res:
-        if not res.ok:
-            if res.content_type == "application/json":
-                data = await res.json()
-                logger.error("API Error:", data)
+    global session
 
-            res.raise_for_status()
+    if session is None:
+        raise RuntimeError("session not initialised")
 
-        data = await res.json()
-        return data
+    retries = 0
+    while True:
+        async with session.request(
+            "POST",
+            f"{BASE_URL}/{path}",
+            params=params,
+            headers={"Authorization": "Anonymous", "Content-type": "application/json"},
+            json=json_data,
+        ) as res:
+            if not res.ok:
+                logger.error(
+                    f"API Error:\n{res.status} {res.content_type}\n{await res.read()}"
+                )
+                retries += 1
+                await asyncio.sleep(5)
+                continue
+
+            if retries == 3:
+                res.raise_for_status()
+
+            data = await res.json()
+            return data
 
 
 async def fetch_category_results(
     identity: models.CategoryType, query: str | None = None, cache: bool = True
-) -> models.CategoryResults:
+) -> models.Category:
     """Fetch results for a certain category type.
 
     Parameters
@@ -88,6 +102,16 @@ async def fetch_category_results(
             ),
             return_exceptions=True,
         )
+        # data = [
+        #     (await get_data(
+        #         f"CategoryTypes/{identity.value}/Categories/FilterWithCache/{INSTITUTION_IDENTITY}",
+        #         params={
+        #             "pageNumber": str(i),
+        #             "query": query or "",
+        #         },
+        #     ))
+        #     for i in range(2, total_pages + 1)
+        # ]
         for d in data:
             if isinstance(d, Exception):
                 raise d
@@ -104,12 +128,12 @@ async def fetch_category_results(
             },
         )
 
-    return models.CategoryResults.from_payload({"Results": results, "Count": count})
+    return models.Category.from_payload({"Results": results, "Count": count})
 
 
 async def get_category_results(
     identity: models.CategoryType, query: str | None = None
-) -> models.CategoryResults | None:
+) -> models.Category | None:
     if not os.path.exists(f"./cache/{identity.value}.json"):
         return None
 
@@ -121,10 +145,10 @@ async def get_category_results(
     ).timestamp():
         return None
 
-    results = models.CategoryResults.from_payload(data)
+    results = models.Category.from_payload(data)
 
     if query:
-        return models.CategoryResults(
+        return models.Category(
             _filter_categories_for(query, results),
             data["Count"],
         )
@@ -133,9 +157,9 @@ async def get_category_results(
 
 
 def _filter_categories_for(
-    query: str, results: models.CategoryResults
-) -> list[models.Category]:
-    ratios: list[tuple[float, models.Category]] = []
+    query: str, results: models.Category
+) -> list[models.CategoryItem]:
+    ratios: list[tuple[float, models.CategoryItem]] = []
 
     for cat in results.categories:
         ratio = difflib.SequenceMatcher(a=cat.name, b=query).ratio()
@@ -149,11 +173,11 @@ def _filter_categories_for(
 
 async def fetch_category_timetable(
     category_type: models.CategoryType,
-    category_identity: str,
+    category_identities: list[str],
     start: datetime.datetime | None = None,
     end: datetime.datetime | None = None,
     cache: bool = True,
-) -> models.CategoryTimetable:
+) -> list[models.CategoryItemTimetable]:
     if start or end:
         cache = False
 
@@ -163,7 +187,7 @@ async def fetch_category_timetable(
         end = datetime.datetime(2024, 5, 5)
 
     if start > end:
-        raise ValueError("start time cannot be later than end time")
+        raise ValueError("Start time cannot be later than end time")
 
     start = start.astimezone(datetime.UTC).replace(tzinfo=None)
     end = end.astimezone(datetime.UTC).replace(tzinfo=None)
@@ -187,20 +211,22 @@ async def fetch_category_timetable(
             "CategoryTypesWithIdentities": [
                 {
                     "CategoryTypeIdentity": category_type.value,
-                    "CategoryIdentities": [category_identity],
+                    "CategoryIdentities": category_identities,
                 }
             ],
         },
     )
-    if cache:
-        await utils.cache_data(category_identity, data)
+    if cache and len(category_identities) == 1:
+        await utils.cache_data(category_identities[0], data)
 
-    return models.CategoryTimetable.from_payload(data)
+    return [
+        models.CategoryItemTimetable.from_payload(d) for d in data["CategoryEvents"]
+    ]
 
 
 async def get_category_timetable(
     category_identity: str,
-) -> models.CategoryTimetable | None:
+) -> models.CategoryItemTimetable | None:
     if not os.path.exists(f"./cache/{category_identity}.json"):
         return None
 
@@ -212,4 +238,4 @@ async def get_category_timetable(
     ).timestamp():
         return None
 
-    return models.CategoryTimetable.from_payload(data)
+    return models.CategoryItemTimetable.from_payload(data)

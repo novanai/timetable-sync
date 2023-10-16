@@ -13,7 +13,8 @@ LOCATION_REGEX = re.compile(
     r"^((?P<campus>[A-Z]{3})\.)?(?P<building>VB|[A-Z][AC-FH-Z]?)(?P<floor>[BG1-9])(?P<room>[0-9\-A-Za-z ()]+)$"
 )
 EVENT_NAME_REGEX = re.compile(
-    r"^(?P<courses>([A-Za-z0-9]+\/?)+)(\[|\()(?P<semester>[0-2])(\]|\))(?P<delivery>OC|AY|SY)\/(?P<activity>P|L|T|W|S)[0-9]\/(?P<group>[0-9]{1,2}).*$"
+    # r"^(?P<courses>([A-Za-z0-9]+\/?)+)(\[|\()?(?P<semester>[0-2])(\]|\))?(?P<delivery>OC|AY|SY)\/(?P<activity>P|L|T|W|S)[0-9]\/(?P<group>[0-9A-Za-z_ ]+).*$"
+    r"^(?P<courses>([A-Za-z0-9]+\/?)+)(\[|\()?(?P<semester>[0-2])(\]|\))?(?P<delivery>OC|AY|SY)\/(?P<activity>P|L|T|W|S)[0-9]\/(?P<group>[0-9]+).*$"
 )
 
 CAMPUSES = {"AHC": "All Hallows", "GLA": "Glasnevin", "SPC": "St Patrick's"}
@@ -94,6 +95,16 @@ class DeliveryType(DisplayEnum):
     ASYNCHRONOUS = "AY"
     SYNCHRONOUS = "SY"
 
+    def display(self) -> str:
+        return DELIVERY_TYPES[self]
+
+
+DELIVERY_TYPES: dict[DeliveryType, str] = {
+    DeliveryType.ON_CAMPUS: "On Campus",
+    DeliveryType.ASYNCHRONOUS: "Asynchronous (Recorded)",
+    DeliveryType.SYNCHRONOUS: "Synchronous (Online, live)",
+}
+
 
 class ActivityType(DisplayEnum):
     PRACTICAL = "P"
@@ -111,26 +122,53 @@ class ModelBase(abc.ABC):
 
 
 @dataclasses.dataclass
-class CategoryResults(ModelBase):
-    categories: list[Category]
+class Category(ModelBase):
+    """Information about a category."""
+
+    categories: list[CategoryItem]
+    """All the items of this category."""
     count: int
+    """The number of items in this category."""
 
     @classmethod
     def from_payload(cls, payload: dict[str, typing.Any]) -> typing.Self:
         return cls(
-            [Category.from_payload(c) for c in payload["Results"]],
+            [CategoryItem.from_payload(c) for c in payload["Results"]],
             payload["Count"],
         )
 
 
 @dataclasses.dataclass
-class Category(ModelBase):
+class CategoryItem(ModelBase):
+    """An item belonging to a category. This could be a course or module."""
+
     description: str | None
-    category_type: CategoryType  # I guess this should be a UUID with extra methods for fetching it or smth
+    """- For courses, this is the full title of the course.
+    - For modules, this is either the full title of the module or null.
+    In the cases of it being null, `CategoryItem.name` should be used.
+    ### Examples
+    - Courses: `"BSc in Computer Science"`
+    - Modules: `"Computing Programming I"` / `None`
+    """
+    category_type: CategoryType
+    """The type of the category this item belongs to."""
     parent_categories: list[str]
+    """Unique identities of the parent category(ies)."""
     identity: str
+    """Unique identity of this category item."""
     name: str
+    """- For courses, this is the course code.
+    - For modules, this is the full module name, including the code, semester and full title.
+    ###
+    - Courses: `"COMSCI1"`
+    - Modules: `"CA116[1] Computing Programming I"`
+    """
     code: str
+    """The course/module code (including the semester number for modules).
+    ### Examples:
+    - Courses: `"COMSCI1"`
+    - Modules: `"CA116[1]"`
+    """
 
     @classmethod
     def from_payload(cls, payload: dict[str, typing.Any]) -> typing.Self:
@@ -143,7 +181,7 @@ class Category(ModelBase):
             code = name
 
         return cls(
-            payload["Description"],
+            payload["Description"].strip() or None,
             cat_type,
             payload["ParentCategoryIdentities"],
             payload["Identity"],
@@ -153,43 +191,101 @@ class Category(ModelBase):
 
 
 @dataclasses.dataclass
-class CategoryTimetable(ModelBase):
+class CategoryItemTimetable(ModelBase):
     category_type: CategoryType
-    category_type_name: str
+    """The type of category this timetable is for."""
     identity: str
+    """The identity of the category item this timetable is for."""
     name: str
+    """- For courses, this is the course code.
+    - For modules, this is the full module name, including the code, semester and full title.
+    ### Examples
+    - Courses: `"COMSCI1"`
+    - Modules: `"CA116[1] Computing Programming I"`
+    """
     events: list[Event]
+    """List of events on this timetable."""
 
     @classmethod
     def from_payload(cls, payload: dict[str, typing.Any]) -> typing.Self:
+        # TODO: this class should be instantiated per category event object,
+        # for combined timetable results
         return cls(
-            payload["CategoryEvents"][0]["CategoryTypeIdentity"],
-            payload["CategoryEvents"][0]["CategoryTypeName"],
-            payload["CategoryEvents"][0]["Identity"],
-            payload["CategoryEvents"][0]["Name"],
-            [Event.from_payload(e) for e in payload["CategoryEvents"][0]["Results"]],
+            payload["CategoryTypeIdentity"],
+            payload["Identity"],
+            payload["Name"],
+            [Event.from_payload(e) for e in payload["Results"]],
         )
 
 
 @dataclasses.dataclass
 class Event(ModelBase):
     identity: str
+    """Unique identity of the event."""
     start: datetime.datetime
+    """Start time of the event."""
     end: datetime.datetime
+    """End time of the event."""
     status_identity: str
+    """This appears to be an identity shared between events of the same activity type and number.
+    ### Examples
+    - L1 (Lecture 1) all share the same identity
+    - T3 (Tutorial 3) all share the same identity (but a different one to L1)
+    """
     locations: list[Location] | None
-    description: str
+    """A list of locations for this event, or `None` if there are no locations
+    (e.g. for asynchronous events).
+    """
+    description: str | None
+    """A description of the event. This could be anything from the activity type
+    (e.g. `"Lecture"`) to a brief description of the event (e.g. `"Introduction to Computing"`)
+    and should therefore not be relied on to provide consistent information.
+    """
     name: str
+    """The name of the event.
+    
+    If this is in the form `MODULE[SEMESTER]EVENT/ACTIVITY/GROUP` (e.g. `"CA116[1]OC/L1/01"`),
+    then the `course_codes`, `semester`, `delivery_type`, `activity_type` and `group` fields
+    will not be `None`.
+    """
     event_type: str
+    """The activity type, almost always `"On Campus"`, `"Synchronous (Online, live)"`
+    or `"Asynchronous (Recorded)"`.
+    """
     last_modified: datetime.datetime
+    """The last time this event was modified."""
     module_name: str | None
+    """The full module name.
+    ### Example
+    CA116[1] Computing Programming I
+    """
     staff_member: str | None
+    """The event's staff member's name.
+    ### Example
+    Blott S
+    """
     weeks: list[int] | None
+    """List of week numbers this event takes place on."""
     course_codes: list[str] | None
+    """A list of course codes this event is for.
+    ### Example
+    `["PS114", "PS114A"]`
+    """
     semester: Semester | None
+    """The semester this event takes place in."""
     delivery_type: DeliveryType | None
+    """The delivery type of this event."""
     activity_type: ActivityType | None
-    group: int | None
+    """The activity type of this event."""
+    group: str | int | None
+    """The group this event is for. 
+    
+    Will try to extract
+    1. the group letter from the name or description (e.g. `"A"`/`"B"`)
+    2. the group number from the name or description (e.g. `1`/`2`)
+    
+    If both of these fail, it will be `None`
+    """
 
     @classmethod
     def from_payload(cls, payload: dict[str, typing.Any]) -> typing.Self:
@@ -202,7 +298,7 @@ class Event(ModelBase):
         for item in payload["ExtraProperties"]:
             rank = item["Rank"]
             if rank == 1:
-                extra_data["module_name"] = re.sub(r"\[.*?\]", "", item["Value"])
+                extra_data["module_name"] = item["Value"]
             elif rank == 2:
                 extra_data["staff_member"] = item["Value"]
             elif rank == 3:
@@ -217,6 +313,14 @@ class Event(ModelBase):
         else:
             courses = semester = delivery_type = activity_type = group = None
 
+        name: str = payload["Name"].lower().replace(" ", "")
+        description: str = payload["Description"].lower().replace(" ", "")
+        group_name: str | None = None
+        for grp in ("group", "grp"):
+            for value in name, description:
+                if grp in value:
+                    group_name = value[value.index(grp) + len(grp)].upper()
+
         return cls(
             identity=payload["Identity"],
             start=datetime.datetime.fromisoformat(payload["StartDateTime"]),
@@ -225,7 +329,7 @@ class Event(ModelBase):
             locations=Location.from_payloads(payload)
             if payload["Location"] is not None
             else None,
-            description=payload["Description"],
+            description=payload["Description"].strip() or None,
             name=payload["Name"],
             event_type=payload["EventType"],
             last_modified=datetime.datetime.fromisoformat(payload["LastModified"]),
@@ -238,16 +342,31 @@ class Event(ModelBase):
             semester=semester,
             delivery_type=delivery_type,
             activity_type=activity_type,
-            group=group,
+            group=group_name or group,
         )
 
 
 @dataclasses.dataclass
 class Location(ModelBase):
+    """A location.s"""
+
     campus: str
+    """The campus code.
+    ### Allowed Values
+    `"GLA"`, `"SPC"`, `"AHC"`
+    """
     building: str
+    """The building code.
+    ### Examples
+    `"L"`, `"SA"` 
+    """
     floor: str
+    """The floor code.
+    ### Allowed Values
+    `"B"` - Basement, `"G"` - Ground Floor, `number > 0` - Floor Number
+    """
     room: str
+    """The room code. Not guaranteed to be just a number."""
 
     @classmethod
     def from_payload(cls, payload: dict[str, typing.Any]) -> typing.Self:

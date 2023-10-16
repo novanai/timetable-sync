@@ -1,39 +1,56 @@
 import datetime
+import time
 import traceback
 
 import aiohttp
 import blacksheep
-from blacksheep.server.templating import use_templates
+from blacksheep.server.templating import \
+    use_templates  # pyright: ignore[reportUnknownVariableType]
 from jinja2 import PackageLoader
 
 from timetable import api, logger, models, utils
 
 app = blacksheep.Application(debug=True)
 
-view = use_templates(
+view = use_templates(  # pyright: ignore[reportUnknownVariableType]
     app, loader=PackageLoader("timetable", "templates"), enable_async=True
 )
 
 
 @app.on_start
+async def start_session(app: blacksheep.Application) -> None:
+    api.session = aiohttp.ClientSession()
+
+
+@app.on_stop
+async def stop_session(app: blacksheep.Application) -> None:
+    assert api.session
+    await api.session.close()
+
+
+@app.on_start
 async def cache_categories(
     app: blacksheep.Application,
-) -> tuple[models.CategoryResults, models.CategoryResults]:
+) -> tuple[models.Category, models.Category]:
     if not (
         courses := await api.get_category_results(
             models.CategoryType.PROGRAMMES_OF_STUDY
         )
     ):
+        start = time.time()
         logger.info("Caching Programmes of Study")
         courses = await api.fetch_category_results(
             models.CategoryType.PROGRAMMES_OF_STUDY, cache=True
         )
+        logger.info(f"Cached Programmes of Study in {time.time()-start}s")
 
     if not (modules := await api.get_category_results(models.CategoryType.MODULES)):
+        start = time.time()
         logger.info("Caching Modules")
         modules = await api.fetch_category_results(
             models.CategoryType.MODULES, cache=True
         )
+        logger.info(f"Cached Modules in {time.time()-start}s")
 
     return courses, modules
 
@@ -125,15 +142,15 @@ async def gen_course_ical(course_code: str) -> bytes | blacksheep.Response:
             ),
         )
 
-    timetable = await api.fetch_category_timetable(
+    timetables = await api.fetch_category_timetable(
         models.CategoryType.PROGRAMMES_OF_STUDY,
-        course.categories[0].identity,
+        [course.categories[0].identity],
         datetime.datetime(2023, 9, 11),
         datetime.datetime(2024, 4, 14),
         cache=False,
     )
 
-    calendar = utils.generate_ical_file(timetable.events)
+    calendar = utils.generate_ical_file(timetables[0].events)
 
     logger.info(f"Generated ical file for course {course.categories[0].name}")
 
@@ -145,7 +162,7 @@ async def gen_modules_ical(modules_str: str) -> bytes | blacksheep.Response:
 
     logger.info(f"Fetching timetables for modules {', '.join(modules)}")
 
-    events: list[models.Event] = []
+    identities: list[str] = []
 
     for mod in modules:
         module = await api.fetch_category_results(
@@ -160,13 +177,18 @@ async def gen_modules_ical(modules_str: str) -> bytes | blacksheep.Response:
                 ),
             )
 
-        timetable = await api.fetch_category_timetable(
-            models.CategoryType.MODULES,
-            module.categories[0].identity,
-            datetime.datetime(2023, 9, 11),
-            datetime.datetime(2024, 4, 14),
-            cache=False,
-        )
+        identities.append(module.categories[0].identity)
+
+    events: list[models.Event] = []
+
+    timetables = await api.fetch_category_timetable(
+        models.CategoryType.MODULES,
+        identities,
+        datetime.datetime(2023, 9, 11),
+        datetime.datetime(2024, 4, 14),
+        cache=False,
+    )
+    for timetable in timetables:
         events.extend(timetable.events)
 
     calendar = utils.generate_ical_file(events)
