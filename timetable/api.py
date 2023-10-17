@@ -19,14 +19,31 @@ PROGRAMMES_OF_STUDY = "241e4d36-60e0-49f8-b27e-99416745d98d"
 
 
 session: aiohttp.ClientSession | None = None
-
+"""The ClientSession to use for requests. Must be initialised when starting the web server,
+and closed when shutting down the web server.
+"""
 
 async def get_data(
     path: str,
     params: dict[str, str] | None = None,
     json_data: dict[str, typing.Any] | None = None,
 ) -> dict[str, typing.Any]:
-    """Get data from the api."""
+    """Get data from the api.
+    
+    Parameters
+    ----------
+    path : str
+        The API path.
+    params : dict[str, str] | None, default None
+        Request parameters.
+    json_data: dict[str, Any] | None, default None
+        Request data.
+
+    Returns
+    -------
+    dict[str, Any]
+        The fetched data.
+    """
     global session
 
     if session is None:
@@ -68,10 +85,16 @@ async def fetch_category_results(
     query : str | None, default None
         A full or partial course code to search for (eg. BUS, COMSCI1)
     cache : bool, default True
-        Whether to cache results.
+        Whether to cache the results.
 
-    !!! NOTE
-        If a course code is specified, the results will not be cached.
+    Returns
+    -------
+    models.Category
+        The fetched category results. This is not guaranteed to contain any categories.
+
+    Note
+    ---
+    If query is specified, the results will not be cached.
     """
     results: list[dict[str, typing.Any]] = []
 
@@ -102,16 +125,6 @@ async def fetch_category_results(
             ),
             return_exceptions=True,
         )
-        # data = [
-        #     (await get_data(
-        #         f"CategoryTypes/{identity.value}/Categories/FilterWithCache/{INSTITUTION_IDENTITY}",
-        #         params={
-        #             "pageNumber": str(i),
-        #             "query": query or "",
-        #         },
-        #     ))
-        #     for i in range(2, total_pages + 1)
-        # ]
         for d in data:
             if isinstance(d, Exception):
                 raise d
@@ -134,6 +147,26 @@ async def fetch_category_results(
 async def get_category_results(
     identity: models.CategoryType, query: str | None = None
 ) -> models.Category | None:
+    """Get results for a certain category type, if cached.
+    
+    Parameters
+    ----------
+    identity : models.CategoryType
+        The type of category to get results for
+    query : str | None, default None
+        A full or partial course code to search for (eg. BUS, COMSCI1)
+
+    Returns
+    -------
+    models.Category
+        If the category was cached and is not outdated.
+    None
+        If the category was not cached or is outdated.
+
+    Fails if:
+    - the category is not cached under `./cache/<identity>.json`
+    - the data is older than one week
+    """
     if not os.path.exists(f"./cache/{identity.value}.json"):
         return None
 
@@ -159,6 +192,20 @@ async def get_category_results(
 def _filter_categories_for(
     query: str, results: models.Category
 ) -> list[models.CategoryItem]:
+    """Filter cached results for `query`.
+    
+    Parameters
+    ----------
+    query : str
+        The query to filter for. Checks only against the category's name.
+    results : models.Category
+        The category to filter though.
+
+    Returns
+    -------
+    list[models.CategoryItem]
+        The items which matched the search query with a greater then 0.8 match.
+    """
     ratios: list[tuple[float, models.CategoryItem]] = []
 
     for cat in results.categories:
@@ -178,6 +225,26 @@ async def fetch_category_timetable(
     end: datetime.datetime | None = None,
     cache: bool = True,
 ) -> list[models.CategoryItemTimetable]:
+    """Fetch the timetable for category_identities belonging to category_type.
+    
+    Parameters
+    ----------
+    category_type : models.CategoryType
+        The type of category to get results in.
+    category_identities : list[str]
+        The identities of the categories to get timetables for.
+    start : datetime.datetime | None, default 2023-9-11
+        The start date/time of the timetable.
+    end : datetime.datetime | None, default 2024-5-5
+        The end date/time of the timetable.
+    cache : bool, default True
+        Whether to cache the results. If start or end is specified, cache is set to False.
+
+    Returns
+    -------
+    list[models.CategoryItemTimetable]
+        The requested timetables.
+    """
     if start or end:
         cache = False
 
@@ -227,6 +294,24 @@ async def fetch_category_timetable(
 async def get_category_timetable(
     category_identity: str,
 ) -> models.CategoryItemTimetable | None:
+    """Get the timetable for category_identity.
+    
+    Parameters
+    ----------
+    category_identity : str
+        The identity of the category to get the timetable for.
+
+    Returns
+    -------
+    models.CategoryItemTimetable
+        The requested timetable, if cached and not outdated.
+    None
+        If not cached or outdated.
+
+    Fails if:
+    - the category is not cached under `./cache/<identity>.json`
+    - the data is older than one week
+    """
     if not os.path.exists(f"./cache/{category_identity}.json"):
         return None
 

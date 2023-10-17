@@ -82,7 +82,7 @@ async def timetable_ui(request: blacksheep.Request) -> blacksheep.Response:
     )
 
 
-@app.route("/howto")
+@app.route("/")
 async def howto(request: blacksheep.Request) -> blacksheep.Response:
     return await view(  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
         "howto",
