@@ -115,7 +115,10 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
             loc = item.locations[0]
             event.add(  # pyright: ignore[reportUnknownMemberType]
                 "LOCATION",
-                f"{str(loc).split('.')[1]} ({models.BUILDINGS[loc.campus][loc.building]}, {models.CAMPUSES[loc.campus]})",
+                (
+                    f"{str(loc).split('.')[1]} ({models.BUILDINGS[loc.campus][loc.building]}, {models.CAMPUSES[loc.campus]})"
+                    + (f", {e}" if (e := item.event_type).lower().startswith("synchronous") else "")
+                ),
             )
         else:
             event.add(  # pyright: ignore[reportUnknownMemberType]
