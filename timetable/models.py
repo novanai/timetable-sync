@@ -377,15 +377,14 @@ class Location(ModelBase):
         location: str = payload["Location"]
         locations: list[str] = []
 
-        if "&" in location:
-            campus, rooms = location.split(".")
-            rooms = [r.strip() for r in rooms.split("&")]
-            locations.extend((f"{campus}.{room}" for room in rooms))
-
-        elif "," in location:
-            locations.extend((loc.strip() for loc in location.split(",")))
-        else:
-            locations = [location]
+        for loc in location.split(","):
+            loc = loc.strip()
+            if "&" in loc:
+                campus, rooms = loc.split(".")
+                rooms = [r.strip() for r in rooms.split("&")]
+                locations.extend((f"{campus}.{room}" for room in rooms))
+            else:
+                locations.append(loc)
 
         final_locations: list[Location] = []
         for loc in locations:
