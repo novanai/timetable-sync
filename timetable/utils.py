@@ -11,6 +11,8 @@ import icalendar  # pyright: ignore[reportMissingTypeStubs]
 
 from timetable import models
 
+ORDER: str = "BG123456789"
+
 
 async def cache_data(filename: str, data: dict[str, typing.Any]) -> None:
     data["CacheTimestamp"] = datetime.datetime.now(datetime.UTC).timestamp()
@@ -89,21 +91,23 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
         )
 
         if item.locations and len(item.locations) > 1:
-            locations: dict[tuple[str, str], list[str]] = {}
+            locations: dict[tuple[str, str], list[models.Location]] = {}
 
             for loc in item.locations:
-                room = str(loc).split(".")[1]
-
                 if (loc.campus, loc.building) in locations:
-                    locations[(loc.campus, loc.building)].append(room)
+                    locations[(loc.campus, loc.building)].append(loc)
                 else:
-                    locations[(loc.campus, loc.building)] = [room]
+                    locations[(loc.campus, loc.building)] = [loc]
 
             locs: list[str] = []
-            for (campus, building), rooms in locations.items():
+            for (campus, building), locs_ in locations.items():
                 building = models.BUILDINGS[campus][building]
                 campus = models.CAMPUSES[campus]
-                locs.append(f"{', '.join(rooms)} ({building}, {campus})")
+                locs_ = sorted(locs_, key=lambda r: r.room)
+                locs_ = sorted(locs_, key=lambda r: ORDER.index(r.floor))
+                locs.append(
+                    f"{', '.join((str(l).split('.')[1] for l in locs_))} ({building}, {campus})"
+                )
 
             final = ", ".join(locs)
 
@@ -117,7 +121,11 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
                 "LOCATION",
                 (
                     f"{str(loc).split('.')[1]} ({models.BUILDINGS[loc.campus][loc.building]}, {models.CAMPUSES[loc.campus]})"
-                    + (f", {e}" if (e := item.event_type).lower().startswith("synchronous") else "")
+                    + (
+                        f", {e}"
+                        if (e := item.event_type).lower().startswith("synchronous")
+                        else ""
+                    )
                 ),
             )
         else:
