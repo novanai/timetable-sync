@@ -23,13 +23,14 @@ session: aiohttp.ClientSession | None = None
 and closed when shutting down the web server.
 """
 
+
 async def get_data(
     path: str,
     params: dict[str, str] | None = None,
     json_data: dict[str, typing.Any] | None = None,
 ) -> dict[str, typing.Any]:
     """Get data from the api.
-    
+
     Parameters
     ----------
     path : str
@@ -148,7 +149,7 @@ async def get_category_results(
     identity: models.CategoryType, query: str | None = None
 ) -> models.Category | None:
     """Get results for a certain category type, if cached.
-    
+
     Parameters
     ----------
     identity : models.CategoryType
@@ -193,7 +194,7 @@ def _filter_categories_for(
     query: str, results: models.Category
 ) -> list[models.CategoryItem]:
     """Filter cached results for `query`.
-    
+
     Parameters
     ----------
     query : str
@@ -226,7 +227,7 @@ async def fetch_category_timetable(
     cache: bool = True,
 ) -> list[models.CategoryItemTimetable]:
     """Fetch the timetable for category_identities belonging to category_type.
-    
+
     Parameters
     ----------
     category_type : models.CategoryType
@@ -295,7 +296,7 @@ async def get_category_timetable(
     category_identity: str,
 ) -> models.CategoryItemTimetable | None:
     """Get the timetable for category_identity.
-    
+
     Parameters
     ----------
     category_identity : str
