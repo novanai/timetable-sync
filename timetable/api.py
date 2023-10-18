@@ -8,7 +8,7 @@ import typing
 import aiofile
 import aiohttp
 
-from timetable import logger, models, utils
+from timetable import logger, models, utils, redis
 
 BASE_URL = "https://scientia-eu-v4-api-d1-03.azurewebsites.net/api/Public"
 
@@ -168,11 +168,15 @@ async def get_category_results(
     - the category is not cached under `./cache/<identity>.json`
     - the data is older than one week
     """
-    if not os.path.exists(f"./cache/{identity.value}.json"):
+    conn = redis.RedisConnection.get_connection()
+    if not conn.exists(identity.value):
         return None
 
-    async with aiofile.async_open(f"./cache/{identity.value}.json", "r") as f:
-        data: dict[str, typing.Any] = json.loads(await f.read())
+    data = conn.get(identity.value)
+    if data is None:
+        return None
+
+    data = json.loads(data)
 
     if (t := data.get("CacheTimestamp")) and t < (
         datetime.datetime.now(datetime.UTC) - datetime.timedelta(weeks=1)
@@ -291,7 +295,6 @@ async def fetch_category_timetable(
         models.CategoryItemTimetable.from_payload(d) for d in data["CategoryEvents"]
     ]
 
-
 async def get_category_timetable(
     category_identity: str,
 ) -> models.CategoryItemTimetable | None:
@@ -313,11 +316,15 @@ async def get_category_timetable(
     - the category is not cached under `./cache/<identity>.json`
     - the data is older than one week
     """
-    if not os.path.exists(f"./cache/{category_identity}.json"):
+    conn = redis.RedisConnection.get_connection()
+    if not conn.exists(category_identity):
         return None
 
-    async with aiofile.async_open(f"./cache/{category_identity}.json", "r") as f:
-        data: dict[str, typing.Any] = json.loads(await f.read())
+    data = conn.get(category_identity)
+    if data is None:
+        return None
+
+    data = json.loads(data)
 
     if (t := data.get("CacheTimestamp")) and t < (
         datetime.datetime.now(datetime.UTC) - datetime.timedelta(weeks=1)

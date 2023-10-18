@@ -9,7 +9,7 @@ import typing
 import aiofile
 import icalendar  # pyright: ignore[reportMissingTypeStubs]
 
-from timetable import models
+from timetable import models, redis
 
 ORDER: str = "BG123456789"
 
@@ -17,12 +17,8 @@ ORDER: str = "BG123456789"
 async def cache_data(filename: str, data: dict[str, typing.Any]) -> None:
     data["CacheTimestamp"] = datetime.datetime.now(datetime.UTC).timestamp()
 
-    if not os.path.exists("./cache/"):
-        os.mkdir("./cache/")
-
-    async with aiofile.async_open(f"./cache/{filename}.json", "w") as f:
-        await f.write(json.dumps(data, indent=4))
-
+    conn = redis.RedisConnection.get_connection()
+    conn.set(filename, json.dumps(data))
 
 def parse_weeks(weeks: str) -> list[int]:
     """Parse a weeks string into a list of week numbers."""
