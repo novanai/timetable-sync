@@ -3,7 +3,7 @@ version: "2"
 services:
   timetable:
     ports:
-      - "8080:80"
+      - "80:80"
     build: .
     restart: unless-stopped
 
