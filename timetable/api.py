@@ -286,6 +286,7 @@ async def fetch_category_timetable(
         models.CategoryItemTimetable.from_payload(d) for d in data["CategoryEvents"]
     ]
 
+
 async def get_category_timetable(
     category_identity: str,
 ) -> models.CategoryItemTimetable | None:

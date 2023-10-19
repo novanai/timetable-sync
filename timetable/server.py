@@ -4,7 +4,9 @@ import traceback
 
 import aiohttp
 import blacksheep
-from blacksheep.server.templating import use_templates  # pyright: ignore[reportUnknownVariableType]
+from blacksheep.server.templating import (
+    use_templates,  # pyright: ignore[reportUnknownVariableType]
+)
 from jinja2 import PackageLoader
 
 from timetable import api, logger, models, utils
