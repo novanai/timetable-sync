@@ -9,7 +9,7 @@ import typing
 import aiofile
 import icalendar  # pyright: ignore[reportMissingTypeStubs]
 
-from timetable import models, redis
+from timetable import models
 
 ORDER: str = "BG123456789"
 
