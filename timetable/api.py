@@ -169,10 +169,10 @@ async def get_category_results(
     - the category is not cached under `./cache/<identity>.json`
     - the data is older than one week
     """
-    if not await cache.default.key_exists(identity.value):
+    if not await cac.default.key_exists(identity.value):
         return None
 
-    data = await cache.default.get(identity.value)
+    data = await cac.default.get(identity.value)
     if data is None:
         return None
 
@@ -314,10 +314,10 @@ async def get_category_timetable(
     - the category is not cached under `./cache/<identity>.json`
     - the data is older than one week
     """
-    if not await cache.default.key_exists(category_identity):
+    if not await cac.default.key_exists(category_identity):
         return None
 
-    data = await cache.default.get(category_identity)
+    data = await cac.default.get(category_identity)
     if data is None:
         return None
 
