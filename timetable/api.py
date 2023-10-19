@@ -1,15 +1,11 @@
 import asyncio
 import datetime
 import difflib
-import json
-import os
 import typing
 
-import aiofile
 import aiohttp
 
-from timetable import cache, logger, models, utils
-import timetable.cache as cac
+from timetable import cache as cache_, logger, models
 
 BASE_URL = "https://scientia-eu-v4-api-d1-03.azurewebsites.net/api/Public"
 
@@ -134,7 +130,7 @@ async def fetch_category_results(
             results.extend(d["Results"])
 
     if not query and cache:
-        await cac.default.set(
+        await cache_.default.set(
             identity.value,
             {
                 "TotalPages": total_pages,
@@ -169,10 +165,7 @@ async def get_category_results(
     - the category is not cached under `./cache/<identity>.json`
     - the data is older than one week
     """
-    if not await cac.default.key_exists(identity.value):
-        return None
-
-    data = await cac.default.get(identity.value)
+    data = await cache_.default.get(identity.value)
     if data is None:
         return None
 
@@ -287,7 +280,7 @@ async def fetch_category_timetable(
         },
     )
     if cache and len(category_identities) == 1:
-        await cac.default.set(category_identities[0], data)
+        await cache_.default.set(category_identities[0], data)
 
     return [
         models.CategoryItemTimetable.from_payload(d) for d in data["CategoryEvents"]
@@ -314,10 +307,7 @@ async def get_category_timetable(
     - the category is not cached under `./cache/<identity>.json`
     - the data is older than one week
     """
-    if not await cac.default.key_exists(category_identity):
-        return None
-
-    data = await cac.default.get(category_identity)
+    data = await cache_.default.get(category_identity)
     if data is None:
         return None
 
