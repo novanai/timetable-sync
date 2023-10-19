@@ -14,12 +14,6 @@ from timetable import models, redis
 ORDER: str = "BG123456789"
 
 
-async def cache_data(filename: str, data: dict[str, typing.Any]) -> None:
-    data["CacheTimestamp"] = datetime.datetime.now(datetime.UTC).timestamp()
-
-    conn = redis.RedisConnection.get_connection()
-    conn.set(filename, json.dumps(data))
-
 def parse_weeks(weeks: str) -> list[int]:
     """Parse a weeks string into a list of week numbers."""
     groups = [w.strip() for w in weeks.split(",")]
