@@ -1,27 +1,12 @@
 from __future__ import annotations
 
 import datetime
-import json
-import os
 import re
-import typing
-
-import aiofile
 import icalendar  # pyright: ignore[reportMissingTypeStubs]
 
 from timetable import models
 
 ORDER: str = "BG123456789"
-
-
-async def cache_data(filename: str, data: dict[str, typing.Any]) -> None:
-    data["CacheTimestamp"] = datetime.datetime.now(datetime.UTC).timestamp()
-
-    if not os.path.exists("./cache/"):
-        os.mkdir("./cache/")
-
-    async with aiofile.async_open(f"./cache/{filename}.json", "w") as f:
-        await f.write(json.dumps(data, indent=4))
 
 
 def parse_weeks(weeks: str) -> list[int]:

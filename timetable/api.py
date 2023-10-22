@@ -1,14 +1,11 @@
 import asyncio
 import datetime
 import difflib
-import json
-import os
 import typing
 
-import aiofile
 import aiohttp
 
-from timetable import logger, models, utils
+from timetable import cache as cache_, logger, models
 
 BASE_URL = "https://scientia-eu-v4-api-d1-03.azurewebsites.net/api/Public"
 
@@ -133,7 +130,7 @@ async def fetch_category_results(
             results.extend(d["Results"])
 
     if not query and cache:
-        await utils.cache_data(
+        await cache_.default.set(
             identity.value,
             {
                 "TotalPages": total_pages,
@@ -168,11 +165,9 @@ async def get_category_results(
     - the category is not cached under `./cache/<identity>.json`
     - the data is older than one week
     """
-    if not os.path.exists(f"./cache/{identity.value}.json"):
+    data = await cache_.default.get(identity.value)
+    if data is None:
         return None
-
-    async with aiofile.async_open(f"./cache/{identity.value}.json", "r") as f:
-        data: dict[str, typing.Any] = json.loads(await f.read())
 
     if (t := data.get("CacheTimestamp")) and t < (
         datetime.datetime.now(datetime.UTC) - datetime.timedelta(weeks=1)
@@ -285,7 +280,7 @@ async def fetch_category_timetable(
         },
     )
     if cache and len(category_identities) == 1:
-        await utils.cache_data(category_identities[0], data)
+        await cache_.default.set(category_identities[0], data)
 
     return [
         models.CategoryItemTimetable.from_payload(d) for d in data["CategoryEvents"]
@@ -313,11 +308,9 @@ async def get_category_timetable(
     - the category is not cached under `./cache/<identity>.json`
     - the data is older than one week
     """
-    if not os.path.exists(f"./cache/{category_identity}.json"):
+    data = await cache_.default.get(category_identity)
+    if data is None:
         return None
-
-    async with aiofile.async_open(f"./cache/{category_identity}.json", "r") as f:
-        data: dict[str, typing.Any] = json.loads(await f.read())
 
     if (t := data.get("CacheTimestamp")) and t < (
         datetime.datetime.now(datetime.UTC) - datetime.timedelta(weeks=1)
