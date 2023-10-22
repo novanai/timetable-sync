@@ -8,6 +8,8 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
+    environment:
+      - REDIS_ADDRESS=${REDIS_ADDRESS}
 
   redis:
     image: redis:7.2.2-alpine3.18

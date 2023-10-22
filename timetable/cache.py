@@ -1,11 +1,13 @@
 import typing
 import json
 from redis.asyncio import Redis
-
+import os
 
 class Cache:
     def __init__(self):
-        self.redis_conn = Redis(host="redis", port=6379, decode_responses=True)
+        self.redis_conn = Redis.from_url(  # pyright: ignore[reportUnknownMemberType]
+            f"redis://{os.environ['REDIS_ADDRESS']}"
+        )
 
     async def set(self, key: str, data: dict[str, typing.Any]) -> None:
         await self.redis_conn.set(  # pyright: ignore[reportUnknownMemberType]
