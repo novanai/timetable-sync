@@ -162,7 +162,7 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
         event = icalendar.Event()  # pyright: ignore[reportPrivateImportUsage]
         event.add("UID", item.identity)  # pyright: ignore[reportUnknownMemberType]
         event.add(  # pyright: ignore[reportUnknownMemberType]
-            "DTSTAMP", item.generate_time
+            "DTSTAMP", item.generated_at
         )
         event.add(  # pyright: ignore[reportUnknownMemberType]
             "LAST-MODIFIED", item.last_modified
