@@ -1,7 +1,7 @@
 import datetime
 import time
 import traceback
-
+import json
 import aiohttp
 import blacksheep
 from blacksheep.server.templating import (
@@ -95,6 +95,8 @@ async def howto(request: blacksheep.Request) -> blacksheep.Response:
 async def timetable_api(request: blacksheep.Request) -> blacksheep.Response:
     course = request.query.get("course", None)
     modules = request.query.get("modules", None)
+    format = request.query.get("format", None)
+    format = format[0] if format else "ical"
     if not course and not modules:
         return blacksheep.Response(
             400,
@@ -110,25 +112,42 @@ async def timetable_api(request: blacksheep.Request) -> blacksheep.Response:
                 data=b"Cannot provide both course and modules.",
             ),
         )
+    if format not in {"ical", "json"}:
+        return blacksheep.Response(
+            400,
+            content=blacksheep.Content(
+                content_type=b"text/plain",
+                data=b"Invalid format.",
+            ),
+        )
+
     if course:
-        calendar = await gen_course_ical(course[0])
+        calendar = await gen_course_timetable(course[0], format)
     else:
         assert modules
-        calendar = await gen_modules_ical(modules[0])
+        calendar = await gen_modules_timetable(modules[0], format)
 
     if isinstance(calendar, blacksheep.Response):
         return calendar
+    elif isinstance(calendar, bytes):
+        return blacksheep.Response(
+            200,
+            content=blacksheep.Content(
+                b"text/calendar",
+                data=calendar,
+            ),
+        )
+    else:
+        return blacksheep.Response(
+            200,
+            content=blacksheep.Content(
+                b"application/json",
+                data=json.dumps(calendar).encode(),
+            ),
+        )
 
-    return blacksheep.Response(
-        200,
-        content=blacksheep.Content(
-            b"text/calendar",
-            data=calendar,
-        ),
-    )
 
-
-async def gen_course_ical(course_code: str) -> bytes | blacksheep.Response:
+async def gen_course_timetable(course_code: str, format: str) -> blacksheep.Response | bytes | list[dict[str, str]]:
     logger.info(f"Fetching timetable for course {course_code}")
 
     course = await api.fetch_category_results(
@@ -150,15 +169,19 @@ async def gen_course_ical(course_code: str) -> bytes | blacksheep.Response:
         datetime.datetime(2024, 4, 14),
         cache=False,
     )
+    events = timetables[0].events
+    if format == "ical":
+        calendar = utils.generate_ical_file(events)
+    else:
+        assert format == "json"
+        calendar = utils.generate_json_file(events)
 
-    calendar = utils.generate_ical_file(timetables[0].events)
-
-    logger.info(f"Generated ical file for course {course.categories[0].name}")
+    logger.info(f"Generated {format} file for course {course.categories[0].name}")
 
     return calendar
 
 
-async def gen_modules_ical(modules_str: str) -> bytes | blacksheep.Response:
+async def gen_modules_timetable(modules_str: str, format: str) -> blacksheep.Response | bytes | list[dict[str, str]]:
     modules = [m.strip() for m in modules_str.split(",")]
 
     logger.info(f"Fetching timetables for modules {', '.join(modules)}")
@@ -192,9 +215,13 @@ async def gen_modules_ical(modules_str: str) -> bytes | blacksheep.Response:
     for timetable in timetables:
         events.extend(timetable.events)
 
-    calendar = utils.generate_ical_file(events)
+    if format == "ical":
+        calendar = utils.generate_ical_file(events)
+    else:
+        assert format == "json"
+        calendar = utils.generate_json_file(events)
 
-    logger.info(f"Generated ical file for modules {', '.join(modules)}")
+    logger.info(f"Generated {format} file for modules {', '.join(modules)}")
 
     return calendar
 
