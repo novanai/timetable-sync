@@ -5,7 +5,8 @@ import typing
 
 import aiohttp
 
-from timetable import cache as cache_, logger, models
+from timetable import cache as cache_
+from timetable import logger, models
 
 BASE_URL = "https://scientia-eu-v4-api-d1-03.azurewebsites.net/api/Public"
 

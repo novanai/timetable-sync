@@ -208,8 +208,6 @@ class CategoryItemTimetable(ModelBase):
 
     @classmethod
     def from_payload(cls, payload: dict[str, typing.Any]) -> typing.Self:
-        # TODO: this class should be instantiated per category event object,
-        # for combined timetable results
         return cls(
             payload["CategoryTypeIdentity"],
             payload["Identity"],

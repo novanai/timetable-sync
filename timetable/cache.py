@@ -1,7 +1,9 @@
-import typing
 import json
-from redis.asyncio import Redis
 import os
+import typing
+
+from redis.asyncio import Redis
+
 
 class Cache:
     def __init__(self):
