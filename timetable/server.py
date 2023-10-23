@@ -147,7 +147,9 @@ async def timetable_api(request: blacksheep.Request) -> blacksheep.Response:
         )
 
 
-async def gen_course_timetable(course_code: str, format: str) -> blacksheep.Response | bytes | list[dict[str, str]]:
+async def gen_course_timetable(
+    course_code: str, format: str
+) -> blacksheep.Response | bytes | list[dict[str, str]]:
     logger.info(f"Fetching timetable for course {course_code}")
 
     course = await api.fetch_category_results(
@@ -181,7 +183,9 @@ async def gen_course_timetable(course_code: str, format: str) -> blacksheep.Resp
     return calendar
 
 
-async def gen_modules_timetable(modules_str: str, format: str) -> blacksheep.Response | bytes | list[dict[str, str]]:
+async def gen_modules_timetable(
+    modules_str: str, format: str
+) -> blacksheep.Response | bytes | list[dict[str, str]]:
     modules = [m.strip() for m in modules_str.split(",")]
 
     logger.info(f"Fetching timetables for modules {', '.join(modules)}")
