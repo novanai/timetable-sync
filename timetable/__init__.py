@@ -1,4 +1,5 @@
 import logging
 
-logger = logging.getLogger("uvicorn")
-logger.setLevel(logging.DEBUG)
+# TODO: Add proper logging format
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
