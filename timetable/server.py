@@ -12,6 +12,8 @@ from timetable import api, logger, models, utils
 
 app = blacksheep.Application()
 
+app.serve_files("./timetable/static/", root_path="static")
+
 view = use_templates(  # pyright: ignore[reportUnknownVariableType]
     app, loader=PackageLoader("timetable", "templates"), enable_async=True
 )

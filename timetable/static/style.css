@@ -1,0 +1,52 @@
+@import url("https://fonts.googleapis.com/css2?family=Rubik&display=swap");
+
+body {
+    margin: 0;
+    font-family: "Rubik", sans-serif;
+}
+.selector {
+    display: flex;
+}
+.selector div {
+    margin: 20px;
+}
+.selector div:hover {
+    cursor: pointer;
+}
+.input-block {
+    margin: 20px;
+    margin-top: 0;
+}
+div#modules-container div {
+    display: flex;
+}
+div.item {
+    line-height: 27.6px;
+    margin-bottom: 5px;
+}
+input, button {
+    font-family: "Rubik", sans-serif;
+    border: none;
+    padding: 5px;
+    background-color: lightgray;
+    cursor: pointer;
+}
+input#generate {
+    margin-top: 5px;
+}
+button.remove-btn {
+    margin-left: 10px;
+}
+input[type=text] {
+    padding: 0;
+    border: none;
+    padding: 5px;
+    cursor: unset;
+}
+input[type=text]:focus {
+    outline: none;
+}
+div#course-url:hover, div#module-url:hover {
+    cursor: pointer;
+    color: #444;
+}
