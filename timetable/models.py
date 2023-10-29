@@ -13,7 +13,6 @@ LOCATION_REGEX = re.compile(
     r"^((?P<campus>[A-Z]{3})\.)?(?P<building>VB|[A-Z][AC-FH-Z]?)(?P<floor>[BG1-9])(?P<room>[0-9\-A-Za-z ()]+)$"
 )
 EVENT_NAME_REGEX = re.compile(
-    # r"^(?P<courses>([A-Za-z0-9]+\/?)+)(\[|\()?(?P<semester>[0-2])(\]|\))?(?P<delivery>OC|AY|SY)\/(?P<activity>P|L|T|W|S)[0-9]\/(?P<group>[0-9A-Za-z_ ]+).*$"
     r"^(?P<courses>([A-Za-z0-9]+\/?)+)(\[|\()?(?P<semester>[0-2])(\]|\))?(?P<delivery>OC|AY|SY)\/(?P<activity>P|L|T|W|S)[0-9]\/(?P<group>[0-9]+).*$"
 )
 
@@ -245,8 +244,7 @@ class Event(ModelBase):
     """The name of the event.
     
     If this is in the form `MODULE[SEMESTER]EVENT/ACTIVITY/GROUP` (e.g. `"CA116[1]OC/L1/01"`),
-    then the `course_codes`, `semester`, `delivery_type`, `activity_type` and `group` fields
-    will not be `None`.
+    then `parsed_name_data` will not be `None`.
     """
     event_type: str
     """The activity type, almost always `"On Campus"`, `"Synchronous (Online, live)"`
@@ -297,6 +295,7 @@ class Event(ModelBase):
             for value in name, description:
                 if grp in value:
                     group_name = value[value.index(grp) + len(grp)].upper()
+                    break
 
         return cls(
             identity=payload["Identity"],
@@ -316,28 +315,6 @@ class Event(ModelBase):
             group_name=group_name,
             parsed_name_data=ParsedNameData.from_payload(payload["Name"]),
         )
-
-    def as_dict(self) -> dict[str, typing.Any]:
-        return {
-            "identity": self.identity,
-            "start": self.start.strftime(TIME_FORMAT),
-            "end": self.end.strftime(TIME_FORMAT),
-            "status_identity": self.status_identity,
-            "locations": [loc.as_dict() for loc in self.locations]
-            if self.locations
-            else None,
-            "description": self.description,
-            "name": self.name,
-            "event_type": self.event_type,
-            "last_modified": self.last_modified.strftime(TIME_FORMAT),
-            "module_name": self.module_name,
-            "staff_member": self.staff_member,
-            "weeks": self.weeks,
-            "group_name": self.group_name,
-            "parsed_name_data": self.parsed_name_data.as_dict()
-            if self.parsed_name_data
-            else None,
-        }
 
 
 @dataclasses.dataclass
@@ -365,6 +342,7 @@ class ParsedNameData:
             semester = Semester(int(match.group("semester")))
             delivery_type = DeliveryType(match.group("delivery"))
             activity_type = ActivityType(match.group("activity"))
+            # TODO: group is actually optional, I think
             group = int(match.group("group"))
 
             return cls(
@@ -375,16 +353,7 @@ class ParsedNameData:
                 group,
             )
         else:
-            logger.info(f"Failed to parse name: '{data}'")
-
-    def as_dict(self) -> dict[str, typing.Any]:
-        return {
-            "course_codes": self.course_codes,
-            "semester": self.semester.value,
-            "delivery_type": self.delivery_type.value,
-            "activity_type": self.activity_type.value,
-            "group_number": self.group_number,
-        }
+            logger.warning(f"Failed to parse name: '{data}'")
 
 
 @dataclasses.dataclass
@@ -442,7 +411,7 @@ class Location(ModelBase):
         if final_locations:
             return final_locations
 
-        logger.info(f"Failed to parse location: '{location}'")
+        logger.warning(f"Failed to parse location: '{location}'")
 
         # fallback
         campus, loc = location.split(".")
@@ -460,11 +429,26 @@ class Location(ModelBase):
             + (f" ({str(self)})" if include_original else "")
         )
 
-    def as_dict(self) -> dict[str, typing.Any]:
-        return {
-            "campus": self.campus,
-            "building": self.building,
-            "floor": self.floor,
-            "room": self.room,
-            "error": self.error,
-        }
+
+class ResponseFormat(enum.Enum):
+    ICAL = "ical"
+    JSON = "json"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def from_str(cls, format: str | None) -> typing.Self:
+        format = format.lower() if format else "ical"
+        try:
+            return cls(format)
+        except ValueError:
+            return cls("unknown")
+
+    @property
+    def content_type(self) -> str:
+        return RESPONSE_FORMATS[self]
+
+
+RESPONSE_FORMATS: dict[ResponseFormat, str] = {
+    ResponseFormat.ICAL: "text/calendar",
+    ResponseFormat.JSON: "application/json",
+}

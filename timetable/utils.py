@@ -6,10 +6,11 @@ import re
 import typing
 
 import icalendar  # pyright: ignore[reportMissingTypeStubs]
-
+import orjson
 from timetable import models
 
 ORDER: str = "BG123456789"
+TIME_FORMAT: str = "%Y-%m-%dT%H:%M:%SZ"
 
 
 def parse_weeks(weeks: str) -> list[int]:
@@ -29,31 +30,34 @@ def parse_weeks(weeks: str) -> list[int]:
     return final
 
 
-TIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+def to_isoformat(text: str) -> datetime.datetime | None:
+    """Parse a string to a datetime object, returning None upon failure."""
+    try:
+        return datetime.datetime.fromisoformat(text)
+    except ValueError:
+        return None
 
 
 @dataclasses.dataclass
 class EventDisplayData:
-    identity: str
-    generated_at: datetime.datetime
-    last_modified: datetime.datetime
-    start_time: datetime.datetime
-    end_time: datetime.datetime
-    summary: str
-    location: str
-    description: str
+    """Display data for events."""
 
-    def as_dict(self) -> dict[str, str]:
-        return {
-            "identity": self.identity,
-            "generated_at": self.generated_at.strftime(TIME_FORMAT),
-            "last_modified": self.last_modified.strftime(TIME_FORMAT),
-            "start_time": self.last_modified.strftime(TIME_FORMAT),
-            "end_time": self.last_modified.strftime(TIME_FORMAT),
-            "summary": self.summary,
-            "location": self.location,
-            "description": self.description,
-        }
+    identity: str
+    """Event identity."""
+    generated_at: datetime.datetime
+    """Time this event was generated at."""
+    last_modified: datetime.datetime
+    """Time this event was last modified at."""
+    start_time: datetime.datetime
+    """Time this event starts at."""
+    end_time: datetime.datetime
+    """Time this event ends at."""
+    summary: str
+    """Summary of this event."""
+    location: str
+    """Location(s) of this event."""
+    description: str
+    """Description of this event."""
 
     @classmethod
     def from_events(cls, events: list[models.Event]) -> list[typing.Self]:
@@ -64,6 +68,9 @@ class EventDisplayData:
     @classmethod
     def from_event(cls, event: models.Event) -> typing.Self:
         # SUMMARY
+
+        # TODO: this regex is not always guaranteed to remove the semester number, as it is
+        # not always contained with square brackets, so it must be updated.
         name = re.sub(r"\[.*?\]", "", n) if (n := event.module_name) else event.name
 
         if event.description and event.description.lower().strip() == "lab":
@@ -185,5 +192,5 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
     return calendar.to_ical()
 
 
-def generate_json_file(events: list[models.Event]) -> list[dict[str, str]]:
-    return [event.as_dict() for event in events]
+def generate_json_file(events: list[models.Event]) -> bytes:
+    return orjson.dumps(events)
