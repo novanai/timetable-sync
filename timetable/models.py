@@ -294,7 +294,8 @@ class Event(ModelBase):
         for grp in ("group", "grp"):
             for value in name, description:
                 if grp in value:
-                    group_name = value[value.index(grp) + len(grp)].upper()
+                    if (index := value.index(grp) + len(grp)) < len(value):
+                        group_name = value[index].upper()
                     break
 
         return cls(

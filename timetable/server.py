@@ -2,6 +2,7 @@ import time
 import traceback
 import aiohttp
 import blacksheep
+import datetime
 from blacksheep.server.templating import (
     use_templates,  # pyright: ignore[reportUnknownVariableType]
 )
@@ -94,7 +95,7 @@ async def timetable_api(request: blacksheep.Request) -> blacksheep.Response:
     start = request.query.get("start")
     end = request.query.get("end")
 
-    format = models.ResponseFormat(format[0] if format else None)
+    format = models.ResponseFormat.from_str(format[0] if format else None)
     start_date = utils.to_isoformat(start[0]) if start else None
     end_date = utils.to_isoformat(end[0]) if end else None
 
@@ -110,7 +111,7 @@ async def timetable_api(request: blacksheep.Request) -> blacksheep.Response:
         message = f"Invalid start date '{start}'."
     elif end and not end_date:
         message = f"Invalid end date '{end}'."
-    elif start_date and end_date and end_date > start_date:
+    elif start_date and end_date and start_date > end_date:
         message = "Start date cannot be later then end date."
 
     if message:
@@ -123,10 +124,14 @@ async def timetable_api(request: blacksheep.Request) -> blacksheep.Response:
         )
 
     if course:
-        calendar, error = await gen_course_timetable(course[0], format)
+        calendar, error = await gen_course_timetable(
+            course[0], format, start_date, end_date
+        )
     else:
         assert modules
-        calendar, error = await gen_modules_timetable(modules[0], format)
+        calendar, error = await gen_modules_timetable(
+            modules[0], format, start_date, end_date
+        )
 
     if error:
         logger.error(f"400 on /api: {calendar.decode()}")
@@ -145,8 +150,12 @@ async def timetable_api(request: blacksheep.Request) -> blacksheep.Response:
 
 
 async def gen_course_timetable(
-    course_code: str, format: models.ResponseFormat
+    course_code: str,
+    format: models.ResponseFormat,
+    start: datetime.datetime | None = None,
+    end: datetime.datetime | None = None,
 ) -> tuple[bytes, bool]:
+    now = time.time()
     logger.info(f"Generating timetable for course {course_code}")
 
     course = await api.fetch_category_results(
@@ -155,13 +164,17 @@ async def gen_course_timetable(
     if not course.categories:
         return f"Invalid course code '{course_code}'.".encode(), True
 
-    if timetable := await api.get_category_timetable(course.categories[0].identity):
+    if timetable := await api.get_category_timetable(
+        course.categories[0].identity, start=start, end=end
+    ):
         logger.info(f"Using cached timetable for course {course_code}")
     else:
         logger.info(f"Fetching timetable for course {course_code}")
         timetables = await api.fetch_category_timetable(
             models.CategoryType.PROGRAMMES_OF_STUDY,
             [course.categories[0].identity],
+            start=start,
+            end=end,
             cache=True,
         )
         timetable = timetables[0]
@@ -172,14 +185,20 @@ async def gen_course_timetable(
         assert format is models.ResponseFormat.JSON
         calendar = utils.generate_json_file(timetable.events)
 
-    logger.info(f"Generated {format.value} file for course {course.categories[0].name}")
+    logger.info(
+        f"Generated {format.value} file for course {course.categories[0].name} in {round(time.time() - now, 3)}s"
+    )
 
     return calendar, False
 
 
 async def gen_modules_timetable(
-    modules_str: str, format: models.ResponseFormat
+    modules_str: str,
+    format: models.ResponseFormat,
+    start: datetime.datetime | None = None,
+    end: datetime.datetime | None = None,
 ) -> tuple[bytes, bool]:
+    now = time.time()
     modules = [m.strip() for m in modules_str.split(",")]
 
     logger.info(f"Generating timetable for modules {', '.join(modules)}")
@@ -199,7 +218,7 @@ async def gen_modules_timetable(
     to_fetch: list[str] = []
 
     for mod, id_ in zip(modules, identities):
-        if timetable := await api.get_category_timetable(id_):
+        if timetable := await api.get_category_timetable(id_, start=start, end=end):
             logger.info(f"Using cached timetable for module {mod}")
             events.extend(timetable.events)
         else:
@@ -210,6 +229,8 @@ async def gen_modules_timetable(
         timetables = await api.fetch_category_timetable(
             models.CategoryType.MODULES,
             to_fetch,
+            start=start,
+            end=end,
             cache=True,
         )
         for timetable in timetables:
@@ -221,7 +242,9 @@ async def gen_modules_timetable(
         assert format is models.ResponseFormat.JSON
         calendar = utils.generate_json_file(events)
 
-    logger.info(f"Generated {format.value} file for modules {', '.join(modules)}")
+    logger.info(
+        f"Generated {format.value} file for modules {', '.join(modules)} in {round(time.time() - now, 3)}s"
+    )
 
     return calendar, False
 

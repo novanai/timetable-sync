@@ -81,9 +81,9 @@ async def fetch_category_results(
     Parameters
     ----------
     identity : models.CategoryType
-        The type of category to get results for
+        The type of category to get results for.
     query : str | None, default None
-        A full or partial course code to search for (eg. BUS, COMSCI1)
+        A full or partial course or module code to search for (eg. BUS, COMSCI1, CA116).
     cache : bool, default True
         Whether to cache the results.
 
@@ -152,9 +152,9 @@ async def get_category_results(
     Parameters
     ----------
     identity : models.CategoryType
-        The type of category to get results for
+        The type of category to get results for.
     query : str | None, default None
-        A full or partial course code to search for (eg. BUS, COMSCI1)
+        A full or partial course or module code to search for (eg. BUS, COMSCI1, CA116).
 
     Returns
     -------
@@ -241,10 +241,8 @@ async def fetch_category_timetable(
     if start or end:
         cache = False
 
-    if not start:
-        start = datetime.datetime(2023, 9, 11)
-    if not end:
-        end = datetime.datetime(2024, 4, 14)
+    start = start or datetime.datetime(2023, 9, 11)
+    end = end or datetime.datetime(2024, 4, 14)
 
     if start > end:
         raise ValueError("Start time cannot be later than end time")
@@ -293,6 +291,8 @@ async def fetch_category_timetable(
 
 async def get_category_timetable(
     category_identity: str,
+    start: datetime.datetime | None = None,
+    end: datetime.datetime | None = None,
 ) -> models.CategoryItemTimetable | None:
     """Get the timetable for category_identity.
 
@@ -312,4 +312,21 @@ async def get_category_timetable(
     if data is None:
         return None
 
-    return models.CategoryItemTimetable.from_payload(data)
+    timetable = models.CategoryItemTimetable.from_payload(data)
+
+    if not start and not end:
+        events = timetable.events
+    else:
+        start = start or datetime.datetime(2023, 9, 11)
+        end = end or datetime.datetime(2024, 4, 14)
+
+        if not start.tzinfo:
+            start = start.replace(tzinfo=datetime.UTC)
+        if not end.tzinfo:
+            end = end.replace(tzinfo=datetime.UTC)
+
+        events = [event for event in timetable.events if start <= event.start <= end]
+
+    timetable.events = events
+
+    return timetable
