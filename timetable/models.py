@@ -293,9 +293,8 @@ class Event(ModelBase):
         group_name: str | None = None
         for grp in ("group", "grp"):
             for value in name, description:
-                if grp in value:
-                    if (index := value.index(grp) + len(grp)) < len(value):
-                        group_name = value[index].upper()
+                if grp in value and (index := value.index(grp) + len(grp)) < len(value):
+                    group_name = value[index].upper()
                     break
 
         return cls(
