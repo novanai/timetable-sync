@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/script.js"></script>
+</head>
+<body>
+    <div id="modules-block" class="input-block">
+        <div id="modules-container"></div>
+        <br>
+        <label for="module-input">Enter module code:</label>
+        <input type="text" id="module-input" name="module-input" list="modules-list" />
+
+        <datalist id="modules-list">
+            {% for module in modules %}
+                <option value="{{ module.value }}">{{ module.name }}</option>
+            {% endfor %}
+        </datalist>
+
+        <input type="button" id="add" value="Add" onclick="addModule()" />
+        <br>
+        <input type="button" id="generate" value="Generate URL" onclick="genModuleURL()" />
+        <br><br>
+        <div id="module-url" onclick="copyModule()" title="Click to copy to clipboard">
+
+        </div>
+    </div>
+</body>
+</html>

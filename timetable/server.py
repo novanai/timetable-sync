@@ -2,17 +2,26 @@ import time
 import traceback
 import aiohttp
 import blacksheep
+import orjson
 import datetime
+from timetable import docs as api_docs
+from blacksheep.server.openapi.v3 import OpenAPIHandler
+from openapidocs.v3 import Info  # pyright: ignore[reportMissingTypeStubs]
 from blacksheep.server.templating import (
     use_templates,  # pyright: ignore[reportUnknownVariableType]
 )
 from jinja2 import PackageLoader
 
-from timetable import api, logger, models, utils
+from timetable import api, logger, models, utils, __version__
 
 app = blacksheep.Application()
+app.serve_files("./timetable/static/", root_path="/static/")
+app.serve_files("./site/", root_path="/")
 
-app.serve_files("./timetable/static/", root_path="static")
+docs = OpenAPIHandler(
+    info=Info(title="TimetableSync API", version=__version__), ui_path="/api_docs"
+)
+docs.bind_app(app)
 
 view = use_templates(  # pyright: ignore[reportUnknownVariableType]
     app, loader=PackageLoader("timetable", "templates"), enable_async=True
@@ -57,49 +66,51 @@ async def get_or_fetch_and_cache_categories() -> tuple[
     return courses, modules
 
 
+@docs.ignore()
 @app.route("/healthcheck")
 async def healthcheck(request: blacksheep.Request) -> blacksheep.Response:
     return blacksheep.Response(status=200)
 
 
-@app.route("/timetable")
-async def timetable_ui(request: blacksheep.Request) -> blacksheep.Response:
+@docs.ignore()
+@app.route("/generator/{generator_type}")
+async def generator(generator_type: str) -> blacksheep.Response:
     courses, modules = await get_or_fetch_and_cache_categories()
 
-    return await view(  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
-        "timetable",
-        {
-            "courses": [c.name for c in courses.categories],
-            "modules": [
-                {
-                    "name": m.name,
-                    "value": m.code,
-                }
-                for m in modules.categories
-            ],
-        },
-    )
+    if generator_type == "course":
+        return await view(  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+            "course_generator",
+            {"courses": [c.name for c in courses.categories]},
+        )
+    elif generator_type == "modules":
+        return await view(  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+            "modules_generator",
+            {
+                "modules": [
+                    {
+                        "name": m.name,
+                        "value": m.code,
+                    }
+                    for m in modules.categories
+                ]
+            },
+        )
+
+    return blacksheep.Response(404)
 
 
-@app.route("/")
-async def howto(request: blacksheep.Request) -> blacksheep.Response:
-    return await view(  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
-        "howto",
-        {},
-    )
-
-
+@docs(api_docs.API)
 @app.route("/api")
-async def timetable_api(request: blacksheep.Request) -> blacksheep.Response:
-    course = request.query.get("course")
-    modules = request.query.get("modules")
-    format = request.query.get("format")
-    start = request.query.get("start")
-    end = request.query.get("end")
-
-    format = models.ResponseFormat.from_str(format[0] if format else None)
-    start_date = utils.to_isoformat(start[0]) if start else None
-    end_date = utils.to_isoformat(end[0]) if end else None
+async def timetable_api(
+    course: blacksheep.FromQuery[str] | None = None,
+    modules: blacksheep.FromQuery[str] | None = None,
+    format: blacksheep.FromQuery[str] | None = None,
+    start: blacksheep.FromQuery[str] | None = None,
+    end: blacksheep.FromQuery[str] | None = None,
+) -> blacksheep.Response:
+    format_ = models.ResponseFormat.from_str(format.value if format else None)
+    start_date = utils.to_isoformat(start.value) if start else None
+    end_date = utils.to_isoformat(end.value) if end else None
 
     message: str | None = None
 
@@ -107,32 +118,41 @@ async def timetable_api(request: blacksheep.Request) -> blacksheep.Response:
         message = "No course or modules provided."
     elif course and modules:
         message = "Cannot provide both course and modules."
-    elif format is models.ResponseFormat.UNKNOWN:
-        message = f"Invalid format '{format}'."
+    elif format_ is models.ResponseFormat.UNKNOWN:
+        message = f"Invalid format '{format_}'."
     elif start and not start_date:
-        message = f"Invalid start date '{start}'."
+        message = f"Invalid start date '{start.value}'."
     elif end and not end_date:
-        message = f"Invalid end date '{end}'."
+        message = f"Invalid end date '{end.value}'."
     elif start_date and end_date and start_date > end_date:
         message = "Start date cannot be later then end date."
 
     if message:
         logger.error(f"400 on /api: {message}")
+        if format_ in (models.ResponseFormat.UNKNOWN, models.ResponseFormat.ICAL):
+            content = blacksheep.Content(
+                content_type=b"text/plain", data=message.encode()
+            )
+        else:
+            assert format_ is models.ResponseFormat.JSON
+            content = blacksheep.Content(
+                content_type=b"application/json",
+                data=orjson.dumps(models.APIError(400, message)),
+            )
+
         return blacksheep.Response(
             400,
-            content=blacksheep.Content(
-                content_type=b"text/plain", data=message.encode()
-            ),
+            content=content,
         )
 
     if course:
         calendar, error = await gen_course_timetable(
-            course[0], format, start_date, end_date
+            course.value, format_, start_date, end_date
         )
     else:
         assert modules
         calendar, error = await gen_modules_timetable(
-            modules[0], format, start_date, end_date
+            modules.value, format_, start_date, end_date
         )
 
     if error:
@@ -145,7 +165,7 @@ async def timetable_api(request: blacksheep.Request) -> blacksheep.Response:
     return blacksheep.Response(
         200,
         content=blacksheep.Content(
-            format.content_type.encode(),
+            format_.content_type.encode(),
             data=calendar,
         ),
     )

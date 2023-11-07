@@ -10,4 +10,6 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
+RUN [ "python3", "-m", "mkdocs", "build" ]
+
 CMD [ "python3", "-m", "timetable" ]

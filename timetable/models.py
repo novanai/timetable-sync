@@ -453,3 +453,13 @@ RESPONSE_FORMATS: dict[ResponseFormat, str] = {
     ResponseFormat.ICAL: "text/calendar",
     ResponseFormat.JSON: "application/json",
 }
+
+
+@dataclasses.dataclass
+class APIError:
+    """API error response."""
+
+    status: int
+    """HTTP status code."""
+    message: str
+    """Error message."""
