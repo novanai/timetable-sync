@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import dataclasses
 import datetime
 import re
-import icalendar  # pyright: ignore[reportMissingTypeStubs]
+import typing
 
+import icalendar  # pyright: ignore[reportMissingTypeStubs]
+import orjson
 from timetable import models
 
 ORDER: str = "BG123456789"
+TIME_FORMAT: str = "%Y-%m-%dT%H:%M:%SZ"
 
 
 def parse_weeks(weeks: str) -> list[int]:
@@ -26,59 +30,73 @@ def parse_weeks(weeks: str) -> list[int]:
     return final
 
 
-def generate_ical_file(events: list[models.Event]) -> bytes:
-    events.sort(key=lambda x: x.start)
+def to_isoformat(text: str) -> datetime.datetime | None:
+    """Parse a string to a datetime object, returning None upon failure."""
+    try:
+        return datetime.datetime.fromisoformat(text)
+    except ValueError:
+        return None
 
-    calendar = icalendar.Calendar()  # pyright: ignore[reportPrivateImportUsage]
-    calendar.add("METHOD", "PUBLISH")  # pyright: ignore[reportUnknownMemberType]
-    calendar.add(  # pyright: ignore[reportUnknownMemberType]
-        "PRODID", "-//nova@redbrick.dcu.ie//TimetableSync//EN"
-    )
-    calendar.add("VERSION", "2.0")  # pyright: ignore[reportUnknownMemberType]
 
-    for item in events:
-        event = icalendar.Event()  # pyright: ignore[reportPrivateImportUsage]
-        event.add("UID", item.identity)  # pyright: ignore[reportUnknownMemberType]
-        event.add(  # pyright: ignore[reportUnknownMemberType]
-            "DTSTAMP", datetime.datetime.now(datetime.UTC)
-        )
-        event.add(  # pyright: ignore[reportUnknownMemberType]
-            "LAST-MODIFIED", item.last_modified.astimezone(datetime.UTC)
-        )
-        event.add(  # pyright: ignore[reportUnknownMemberType]
-            "DTSTART", item.start.astimezone(datetime.UTC)
-        )
-        event.add(  # pyright: ignore[reportUnknownMemberType]
-            "DTEND", item.end.astimezone(datetime.UTC)
-        )
+@dataclasses.dataclass
+class EventDisplayData:
+    """Display data for events."""
 
-        name = re.sub(r"\[.*?\]", "", n) if (n := item.module_name) else item.name
-        # if "lab" in description, then ac = "lab" else "ac" for both summary and description fields
+    identity: str
+    """Event identity."""
+    generated_at: datetime.datetime
+    """Time this event was generated at."""
+    last_modified: datetime.datetime
+    """Time this event was last modified at."""
+    start_time: datetime.datetime
+    """Time this event starts at."""
+    end_time: datetime.datetime
+    """Time this event ends at."""
+    summary: str
+    """Summary of this event."""
+    location: str
+    """Location(s) of this event."""
+    description: str
+    """Description of this event."""
 
-        if item.description and item.description.lower().strip() == "lab":
+    @classmethod
+    def from_events(cls, events: list[models.Event]) -> list[typing.Self]:
+        events.sort(key=lambda x: x.start)
+
+        return [cls.from_event(event) for event in events]
+
+    @classmethod
+    def from_event(cls, event: models.Event) -> typing.Self:
+        # SUMMARY
+
+        # TODO: this regex is not always guaranteed to remove the semester number, as it is
+        # not always contained with square brackets, so it must be updated.
+        name = re.sub(r"\[.*?\]", "", n) if (n := event.module_name) else event.name
+
+        if event.description and event.description.lower().strip() == "lab":
             ac = "Lab"
-        elif item.activity_type:
-            ac = item.activity_type.display()
+        elif event.parsed_name_data:
+            ac = event.parsed_name_data.activity_type.display()
         else:
             ac = ""
 
-        if ac and (group := item.group) and isinstance(group, str):
-            summary = f"({ac}, Group {group})"
+        if ac and event.group_name:
+            summary = f"({ac}, Group {event.group_name})"
         elif ac:
             summary = f"({ac})"
-        elif (group := item.group) and isinstance(group, str):
-            summary = f"(Group {group})"
+        elif event.group_name:
+            summary = f"(Group {event.group_name})"
         else:
             summary = ""
 
-        event.add(  # pyright: ignore[reportUnknownMemberType]
-            "SUMMARY", (name + (f" {summary}" if summary else "")).strip()
-        )
+        summary = (name + (f" {summary}" if summary else "")).strip()
 
-        if item.locations and len(item.locations) > 1:
+        # LOCATIONS
+
+        if event.locations and len(event.locations) > 1:
             locations: dict[tuple[str, str], list[models.Location]] = {}
 
-            for loc in item.locations:
+            for loc in event.locations:
                 if (loc.campus, loc.building) in locations:
                     locations[(loc.campus, loc.building)].append(loc)
                 else:
@@ -91,46 +109,88 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
                 locs_ = sorted(locs_, key=lambda r: r.room)
                 locs_ = sorted(locs_, key=lambda r: ORDER.index(r.floor))
                 locs.append(
-                    f"{', '.join((str(l).split('.')[1] for l in locs_))} ({building}, {campus})"
+                    f"{', '.join((str(loc).split('.')[1] for loc in locs_))} ({building}, {campus})"
                 )
 
             final = ", ".join(locs)
 
-            event.add(  # pyright: ignore[reportUnknownMemberType]
-                "LOCATION",
-                final,
-            )
-        elif item.locations:
-            loc = item.locations[0]
-            event.add(  # pyright: ignore[reportUnknownMemberType]
-                "LOCATION",
-                (
-                    f"{str(loc).split('.')[1]} ({models.BUILDINGS[loc.campus][loc.building]}, {models.CAMPUSES[loc.campus]})"
-                    + (
-                        f", {e}"
-                        if (e := item.event_type).lower().startswith("synchronous")
-                        else ""
-                    )
-                ),
+            location = final
+
+        elif event.locations:
+            loc = event.locations[0]
+            location = (
+                f"{str(loc).split('.')[1]} ({models.BUILDINGS[loc.campus][loc.building]}, {models.CAMPUSES[loc.campus]})"
+                + (
+                    f", {e}"
+                    if (e := event.event_type).lower().startswith("synchronous")
+                    else ""
+                )
             )
         else:
-            event.add(  # pyright: ignore[reportUnknownMemberType]
-                "LOCATION", item.event_type
-            )
+            location = event.event_type
+
+        # DESCRIPTION
 
         if not ac:
-            description = item.description
-        elif ac and item.description and item.description.lower() != ac.lower():
-            description = f"{item.description}, {ac}"
+            description = event.description
+        elif ac and event.description and event.description.lower() != ac.lower():
+            description = f"{event.description}, {ac}"
         else:
             description = ac
 
-        event_type = dt.display() if (dt := item.delivery_type) else item.event_type
+        event_type = (
+            data.delivery_type.display()
+            if (data := event.parsed_name_data)
+            else event.event_type
+        )
 
+        description = f"{description}, {event_type}"
+
+        return cls(
+            event.identity,
+            datetime.datetime.now(datetime.UTC),
+            event.last_modified.astimezone(datetime.UTC),
+            event.start.astimezone(datetime.UTC),
+            event.end.astimezone(datetime.UTC),
+            summary,
+            location,
+            description,
+        )
+
+
+def generate_ical_file(events: list[models.Event]) -> bytes:
+    display_data = EventDisplayData.from_events(events)
+
+    calendar = icalendar.Calendar()  # pyright: ignore[reportPrivateImportUsage]
+    calendar.add("METHOD", "PUBLISH")  # pyright: ignore[reportUnknownMemberType]
+    calendar.add(  # pyright: ignore[reportUnknownMemberType]
+        "PRODID", "-//nova@redbrick.dcu.ie//TimetableSync//EN"
+    )
+    calendar.add("VERSION", "2.0")  # pyright: ignore[reportUnknownMemberType]
+
+    for item in display_data:
+        event = icalendar.Event()  # pyright: ignore[reportPrivateImportUsage]
+        event.add("UID", item.identity)  # pyright: ignore[reportUnknownMemberType]
         event.add(  # pyright: ignore[reportUnknownMemberType]
-            "DESCRIPTION", f"{description}, {event_type}"
+            "DTSTAMP", item.generated_at
+        )
+        event.add(  # pyright: ignore[reportUnknownMemberType]
+            "LAST-MODIFIED", item.last_modified
+        )
+        event.add(  # pyright: ignore[reportUnknownMemberType]
+            "DTSTART", item.start_time
+        )
+        event.add("DTEND", item.end_time)  # pyright: ignore[reportUnknownMemberType]
+        event.add("SUMMARY", item.summary)  # pyright: ignore[reportUnknownMemberType]
+        event.add("LOCATION", item.location)  # pyright: ignore[reportUnknownMemberType]
+        event.add(  # pyright: ignore[reportUnknownMemberType]
+            "DESCRIPTION", item.description
         )
         event.add("CLASS", "PUBLIC")  # pyright: ignore[reportUnknownMemberType]
         calendar.add_component(event)  # pyright: ignore[reportUnknownMemberType]
 
     return calendar.to_ical()
+
+
+def generate_json_file(events: list[models.Event]) -> bytes:
+    return orjson.dumps(events)

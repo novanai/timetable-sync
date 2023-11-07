@@ -1,5 +1,7 @@
 __pycache__/
 .venv*/
+.vscode/
 cache/
+site/
 Dockerfile
 compose.yaml

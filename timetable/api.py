@@ -2,10 +2,12 @@ import asyncio
 import datetime
 import difflib
 import typing
+import orjson
 
 import aiohttp
 
-from timetable import cache as cache_, logger, models
+from timetable import cache as cache_
+from timetable import logger, models
 
 BASE_URL = "https://scientia-eu-v4-api-d1-03.azurewebsites.net/api/Public"
 
@@ -42,8 +44,8 @@ async def get_data(
     dict[str, Any]
         The fetched data.
     """
+    # TODO: replace this monstrosity with something more sane
     global session
-
     if session is None:
         raise RuntimeError("session not initialised")
 
@@ -57,17 +59,17 @@ async def get_data(
             json=json_data,
         ) as res:
             if not res.ok:
-                logger.error(
-                    f"API Error:\n{res.status} {res.content_type}\n{await res.read()}"
-                )
                 retries += 1
                 await asyncio.sleep(5)
                 continue
 
             if retries == 3:
+                logger.error(
+                    f"API Error: {res.status} {res.content_type} {(await res.read()).decode()}"
+                )
                 res.raise_for_status()
 
-            data = await res.json()
+            data = await res.json(loads=orjson.loads)
             return data
 
 
@@ -79,9 +81,9 @@ async def fetch_category_results(
     Parameters
     ----------
     identity : models.CategoryType
-        The type of category to get results for
+        The type of category to get results for.
     query : str | None, default None
-        A full or partial course code to search for (eg. BUS, COMSCI1)
+        A full or partial course or module code to search for (eg. BUS, COMSCI1, CA116).
     cache : bool, default True
         Whether to cache the results.
 
@@ -124,7 +126,7 @@ async def fetch_category_results(
             return_exceptions=True,
         )
         for d in data:
-            if isinstance(d, Exception):
+            if isinstance(d, BaseException):
                 raise d
 
             results.extend(d["Results"])
@@ -150,9 +152,9 @@ async def get_category_results(
     Parameters
     ----------
     identity : models.CategoryType
-        The type of category to get results for
+        The type of category to get results for.
     query : str | None, default None
-        A full or partial course code to search for (eg. BUS, COMSCI1)
+        A full or partial course or module code to search for (eg. BUS, COMSCI1, CA116).
 
     Returns
     -------
@@ -160,25 +162,16 @@ async def get_category_results(
         If the category was cached and is not outdated.
     None
         If the category was not cached or is outdated.
-
-    Fails if:
-    - the category is not cached under `./cache/<identity>.json`
-    - the data is older than one week
     """
     data = await cache_.default.get(identity.value)
     if data is None:
-        return None
-
-    if (t := data.get("CacheTimestamp")) and t < (
-        datetime.datetime.now(datetime.UTC) - datetime.timedelta(weeks=1)
-    ).timestamp():
         return None
 
     results = models.Category.from_payload(data)
 
     if query:
         return models.Category(
-            _filter_categories_for(query, results),
+            _filter_categories_for(results, query),
             data["Count"],
         )
 
@@ -186,25 +179,29 @@ async def get_category_results(
 
 
 def _filter_categories_for(
-    query: str, results: models.Category
+    results: models.Category,
+    query: str,
 ) -> list[models.CategoryItem]:
     """Filter cached results for `query`.
 
     Parameters
     ----------
-    query : str
-        The query to filter for. Checks only against the category's name.
     results : models.Category
         The category to filter though.
+    query : str
+        The query to filter for. Checks only against the category's name.
 
     Returns
     -------
     list[models.CategoryItem]
-        The items which matched the search query with a greater then 0.8 match.
+        The items which matched the search query with a greater then 0.8 match,
+        sorted from highest match to lowest.
     """
     ratios: list[tuple[float, models.CategoryItem]] = []
 
     for cat in results.categories:
+        # TODO: this matching algorithm is not what we want, as it only
+        # works on courses (whose names are just the course code)
         ratio = difflib.SequenceMatcher(a=cat.name, b=query).ratio()
         ratios.append((ratio, cat))
     filtered = filter(lambda r: r[0] > 0.8, ratios)
@@ -244,10 +241,8 @@ async def fetch_category_timetable(
     if start or end:
         cache = False
 
-    if not start:
-        start = datetime.datetime(2023, 9, 11)
-    if not end:
-        end = datetime.datetime(2024, 5, 5)
+    start = start or datetime.datetime(2023, 9, 11)
+    end = end or datetime.datetime(2024, 4, 14)
 
     if start > end:
         raise ValueError("Start time cannot be later than end time")
@@ -279,16 +274,25 @@ async def fetch_category_timetable(
             ],
         },
     )
-    if cache and len(category_identities) == 1:
-        await cache_.default.set(category_identities[0], data)
 
-    return [
-        models.CategoryItemTimetable.from_payload(d) for d in data["CategoryEvents"]
-    ]
+    timetables: list[models.CategoryItemTimetable] = []
+    for timetable in data["CategoryEvents"]:
+        timetables.append(models.CategoryItemTimetable.from_payload(timetable))
+
+        if cache:
+            await cache_.default.set(
+                timetable["Identity"],
+                timetable,
+                expires_in=datetime.timedelta(seconds=43200),  # 12 hours
+            )
+
+    return timetables
 
 
 async def get_category_timetable(
     category_identity: str,
+    start: datetime.datetime | None = None,
+    end: datetime.datetime | None = None,
 ) -> models.CategoryItemTimetable | None:
     """Get the timetable for category_identity.
 
@@ -300,21 +304,29 @@ async def get_category_timetable(
     Returns
     -------
     models.CategoryItemTimetable
-        The requested timetable, if cached and not outdated.
+        If the timetable was cached and is not outdated.
     None
-        If not cached or outdated.
-
-    Fails if:
-    - the category is not cached under `./cache/<identity>.json`
-    - the data is older than one week
+        If the timetable was not cached or is outdated.
     """
     data = await cache_.default.get(category_identity)
     if data is None:
         return None
 
-    if (t := data.get("CacheTimestamp")) and t < (
-        datetime.datetime.now(datetime.UTC) - datetime.timedelta(weeks=1)
-    ).timestamp():
-        return None
+    timetable = models.CategoryItemTimetable.from_payload(data)
 
-    return models.CategoryItemTimetable.from_payload(data)
+    if not start and not end:
+        events = timetable.events
+    else:
+        start = start or datetime.datetime(2023, 9, 11)
+        end = end or datetime.datetime(2024, 4, 14)
+
+        if not start.tzinfo:
+            start = start.replace(tzinfo=datetime.UTC)
+        if not end.tzinfo:
+            end = end.replace(tzinfo=datetime.UTC)
+
+        events = [event for event in timetable.events if start <= event.start <= end]
+
+    timetable.events = events
+
+    return timetable

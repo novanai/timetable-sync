@@ -1,5 +1,9 @@
 aiohttp==3.8.6
 blacksheep==1.2.18
-icalendar==5.0.10
+icalendar==5.0.11
+mkdocs==1.5.3
+mkdocs-material==9.4.8
+orjson==3.9.10
+pymdown-extensions==10.3.1
+redis[hiredis]==5.0.1
 uvicorn==0.23.2
-redis==5.0.1
