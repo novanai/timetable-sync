@@ -1,1 +1,1 @@
-<iframe style="border: none; height: 100vh; width:100%;" src="/api_docs"></iframe>
+<iframe style="border: none; height: 100vh; width: 100%;" src="/api_docs"></iframe>

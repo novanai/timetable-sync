@@ -6,8 +6,8 @@
 
 To make sure you calendar syncs on mobile devices:
 
-- On Android devices, open Google Calendar. Go to settings, select the calendar and enable the "Sync" option.
-- On Apple devices, go to <https://calendar.google.com/calendar/syncselect>, select the calendar(s) you want to sync, and then save.
+- On Android devices: open Google Calendar, go to settings, select the calendar and enable the "Sync" option.
+- On Apple devices: go to <https://calendar.google.com/calendar/syncselect>, select the calendar(s) you want to sync, and then save.
 
 # Add to Apple Calendar
 
