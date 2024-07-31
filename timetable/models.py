@@ -7,11 +7,15 @@ import enum
 import re
 import typing
 
-from timetable import utils, logger
+from timetable import utils
+import logging
+
+logger = logging.getLogger(__name__)
 
 LOCATION_REGEX = re.compile(
     r"^((?P<campus>[A-Z]{3})\.)?(?P<building>VB|[A-Z][AC-FH-Z]?)(?P<floor>[BG1-9])(?P<room>[0-9\-A-Za-z ()]+)$"
 )
+# TODO: rename `courses` to `modules`
 EVENT_NAME_REGEX = re.compile(
     r"^(?P<courses>([A-Za-z0-9]+\/?)+)(\[|\()?(?P<semester>[0-2])(\]|\))?(?P<delivery>OC|AY|SY)\/(?P<activity>P|L|T|W|S)[0-9]\/(?P<group>[0-9]+).*$"
 )
@@ -126,6 +130,7 @@ class ModelBase(abc.ABC):
 class Category(ModelBase):
     """Information about a category."""
 
+    # TODO: why was this called `categories` instead of `items`
     categories: list[CategoryItem]
     """All the items of this category."""
     count: int
@@ -322,7 +327,14 @@ class ParsedNameData:
     """Data parsed from the event name into proper formats."""
 
     course_codes: list[str]
-    """A list of course codes this event is for.
+    """**DEPRECATED** - Incorrectly named, use `module_codes` instead.
+
+    A list of module codes this event is for.
+    ### Example
+    `["PS114", "PS114A"]`
+    """
+    module_codes: list[str]
+    """A list of module codes this event is for.
     ### Example
     `["PS114", "PS114A"]`
     """
@@ -337,16 +349,21 @@ class ParsedNameData:
 
     @classmethod
     def from_payload(cls, data: str) -> typing.Self | None:
+        data = data.replace(" ", "")
         if match := EVENT_NAME_REGEX.match(data):
             courses = match.group("courses")
             semester = Semester(int(match.group("semester")))
-            delivery_type = DeliveryType(match.group("delivery"))
+            delivery = dt if (dt := match.group("delivery")) != "0C" else "OC"
+            delivery_type = DeliveryType(delivery)
             activity_type = ActivityType(match.group("activity"))
             # TODO: group is actually optional, I think
             group = int(match.group("group"))
 
+            courses = [course for course in courses.split("/") if course.strip()]
+
             return cls(
-                [course for course in courses.split("/") if course.strip()],
+                courses,
+                courses,
                 semester,
                 delivery_type,
                 activity_type,
@@ -385,7 +402,7 @@ class Location(ModelBase):
         raise NotImplementedError
 
     @classmethod
-    def from_payloads(cls, payload: dict[str, typing.Any]) -> list[typing.Self]:
+    def from_payloads(cls, payload: dict[str, typing.Any]) -> list[Location]:  # TODO: why can't I use typing.Self here?
         location: str = payload["Location"]
         locations: list[str] = []
 
@@ -426,7 +443,7 @@ class Location(ModelBase):
             f"{self.floor}.{self.room}, "
             f"{BUILDINGS[self.campus][self.building]} ({self.building}), "
             f"{CAMPUSES[self.campus]} ({self.campus})"
-            + (f" ({str(self)})" if include_original else "")
+            + (f", ({str(self)})" if include_original else "")
         )
 
 
@@ -462,3 +479,7 @@ class APIError:
     """HTTP status code."""
     message: str
     """Error message."""
+
+@dataclasses.dataclass
+class InvalidCodeError(Exception):
+    code: str

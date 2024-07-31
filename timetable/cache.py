@@ -58,7 +58,3 @@ class Cache:
             return None
 
         return orjson.loads(data)  # pyright: ignore[reportUnknownArgumentType]
-
-
-default = Cache()
-"""Default cache instance."""

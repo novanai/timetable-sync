@@ -24,19 +24,19 @@ API = EndpointDocs(
             example="CA103,CA116,MS134",
         ),
         "format": ParameterInfo(
-            "The response format.\n\nAllowed values: 'ical' or 'json'",
+            "The response format.\n\nAllowed values: 'ical' or 'json'.\nDefault: 'ical'.",
             str,
             required=False,
             example="json",
         ),
         "start": ParameterInfo(
-            "Only get timetable events later than this datetime",
+            "Only get timetable events later than this datetime.",
             str,
             required=False,
             example="2023-10-31T13:00:00",
         ),
         "end": ParameterInfo(
-            "Only get timetable events earlier than this datetime",
+            "Only get timetable events earlier than this datetime.",
             str,
             required=False,
             example="2024-04-23T10:00:00",
@@ -45,8 +45,9 @@ API = EndpointDocs(
     responses={
         200: ResponseInfo(
             (
-                "Successfully generated a timetable. However, it is not guaranteed to actually contain any events.\n\nIf format "
-                "was 'json', response will be in json format. Otherwise if format was 'ical', response will be in plain text."
+                "Successfully generated a timetable. However, it is not guaranteed to actually contain any events.\n\n"
+                "If format was 'json', response will be in json format. Otherwise if format was 'ical' or not specified, "
+                "response will be in plain text."
             ),
             content=[
                 ContentInfo(
@@ -105,7 +106,8 @@ END:VCALENDAR
                                 weeks=[3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
                                 group_name=None,
                                 parsed_name_data=models.ParsedNameData(
-                                    course_codes=["CA116"],
+                                    course_codes=["COMSCI1"],
+                                    module_codes=["CA116"],
                                     semester=models.Semester.SEMESTER_1,
                                     delivery_type=models.DeliveryType.ON_CAMPUS,
                                     activity_type=models.ActivityType.LECTURE,

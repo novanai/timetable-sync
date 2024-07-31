@@ -4,7 +4,7 @@ import dataclasses
 import datetime
 import re
 import typing
-
+import collections
 import icalendar  # pyright: ignore[reportMissingTypeStubs]
 import orjson
 from timetable import models
@@ -73,6 +73,8 @@ class EventDisplayData:
         # not always contained with square brackets, so it must be updated.
         name = re.sub(r"\[.*?\]", "", n) if (n := event.module_name) else event.name
 
+        # TODO: is this first if block strictly necessary, as this will apply to a minimal set of modules (e.g. CA116)?
+        # TODO: rename `ac` to `activity`
         if event.description and event.description.lower().strip() == "lab":
             ac = "Lab"
         elif event.parsed_name_data:
@@ -94,13 +96,10 @@ class EventDisplayData:
         # LOCATIONS
 
         if event.locations and len(event.locations) > 1:
-            locations: dict[tuple[str, str], list[models.Location]] = {}
+            locations: dict[tuple[str, str], list[models.Location]] = collections.defaultdict(list)
 
             for loc in event.locations:
-                if (loc.campus, loc.building) in locations:
-                    locations[(loc.campus, loc.building)].append(loc)
-                else:
-                    locations[(loc.campus, loc.building)] = [loc]
+                locations[(loc.campus, loc.building)].append(loc)
 
             locs: list[str] = []
             for (campus, building), locs_ in locations.items():
@@ -118,14 +117,13 @@ class EventDisplayData:
 
         elif event.locations:
             loc = event.locations[0]
-            location = (
-                f"{str(loc).split('.')[1]} ({models.BUILDINGS[loc.campus][loc.building]}, {models.CAMPUSES[loc.campus]})"
-                + (
-                    f", {e}"
-                    if (e := event.event_type).lower().startswith("synchronous")
-                    else ""
-                )
-            )
+            building = models.BUILDINGS[loc.campus][loc.building]
+            campus = models.CAMPUSES[loc.campus]
+            room = str(loc).split('.')[1]
+            location = f"{room} ({building}, {campus})"
+            
+            if (e := event.event_type).lower().startswith("synchronous"):
+                location += f", {e}"
         else:
             location = event.event_type
 
