@@ -5,7 +5,7 @@
    
     onMount(async () => {
         SwaggerUI({
-            url: "/api/openapi.json",
+            url: '/api/openapi.json',
             dom_id: '#swagger-ui-container'
         });
     });

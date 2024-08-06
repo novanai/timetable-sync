@@ -5,10 +5,10 @@ export async function load({ fetch, params }) {
     let modules;
     let response;
     
-    response = await fetch("/api/all/courses");
+    response = await fetch('/api/all/courses');
     courses = await response.json();
     
-    response = await fetch("/api/all/modules");
+    response = await fetch('/api/all/modules');
     modules = await response.json();
 
 	return {
