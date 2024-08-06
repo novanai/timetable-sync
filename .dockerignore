@@ -1,7 +1,23 @@
+# Node
+node_modules/
+
+# Output
+.output/
+.vercel/
+.svelte-kit/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Python
 __pycache__/
-.venv*/
+.venv/
+
+# Editor
 .vscode/
-cache/
-site/
-Dockerfile
-compose.yaml

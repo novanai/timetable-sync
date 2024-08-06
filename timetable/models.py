@@ -165,7 +165,7 @@ class CategoryItem(ModelBase):
     name: str
     """- For courses, this is the course code.
     - For modules, this is the full module name, including the code, semester and full title.
-    ###
+    ### Examples:
     - Courses: `"COMSCI1"`
     - Modules: `"CA116[1] Computing Programming I"`
     """

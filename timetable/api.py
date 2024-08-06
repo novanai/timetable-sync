@@ -214,6 +214,7 @@ class API:
         count = count if count is not None else len(results.categories)
         ratios: list[tuple[models.CategoryItem, int]] = []
 
+        # TODO: use https://github.com/rapidfuzz/RapidFuzz directly instead of thefuzz
         for item in results.categories:
             item_ratios: list[int] = [
                 process.default_scorer(query, item.name),  # pyright: ignore[reportUnknownMemberType]

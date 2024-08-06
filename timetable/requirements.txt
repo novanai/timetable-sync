@@ -1,4 +1,5 @@
 aiohttp==3.10.0
 icalendar==5.0.13
 orjson==3.10.6
+redis[hiredis]==5.0.8
 thefuzz==0.22.1

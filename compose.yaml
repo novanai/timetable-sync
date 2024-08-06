@@ -1,20 +1,57 @@
 services:
-  backend:
-    container_name: backend
+  nginx:
+    container_name: nginx
+    image: nginx:1.26.1-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
     ports:
       - "80:80"
+    volumes: 
+      - ./nginx:/etc/nginx/conf.d/
+
+  backend:
+    container_name: backend
     build:
       context: .
       dockerfile: ./backend/Dockerfile
     restart: unless-stopped
     depends_on:
       - redis
+    ports:
+      - "4000:4000"
     environment:
       - REDIS_ADDRESS=${REDIS_ADDRESS}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    container_name: frontend
+    build:
+      context: .
+      dockerfile: ./frontend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3000
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   redis:
     container_name: redis
-    image: redis:7.2.5-alpine3.20
+    image: redis:7.4.0-alpine3.20
+    restart: unless-stopped
     ports:
       - "6379:6379"
-    restart: unless-stopped

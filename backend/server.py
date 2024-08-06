@@ -8,7 +8,6 @@ import logging
 from backend import __version__
 from timetable import api as api_, models, utils
 
-
 from backend import api_docs
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from openapidocs.v3 import Info  # pyright: ignore[reportMissingTypeStubs]
@@ -21,7 +20,9 @@ app = blacksheep.Application()
 api = api_.API()
 
 docs = OpenAPIHandler(
-    info=Info(title="TimetableSync API", version=__version__), ui_path="/api_docs"
+    info=Info(title="TimetableSync API", version=__version__),
+    ui_path="/api/api_docs",
+    json_spec_path="/api/openapi.json"
 )
 docs.bind_app(app)
 
@@ -64,11 +65,49 @@ async def get_or_fetch_and_cache_categories() -> (
 
 
 @docs.ignore()
-@blacksheep.route("/healthcheck")
+@blacksheep.route("/api/healthcheck")
 async def healthcheck() -> blacksheep.Response:
     return blacksheep.Response(status=200)
 
 
+@docs.ignore()
+@blacksheep.route("/api/all/{category_type}")
+async def all_category_values(
+    category_type: str,
+) -> blacksheep.Response:
+    if category_type not in ("courses", "modules"):
+        return blacksheep.Response(
+            status=400,
+            content=blacksheep.Content(
+                content_type=b"text/plain",
+                data=b"Invalid value provided."
+            )
+        )
+
+    courses, modules = await get_or_fetch_and_cache_categories()
+
+    if category_type == "courses":
+        data = [c.name for c in courses.categories]
+    else:
+        assert category_type == "modules"
+        data =  [
+            {
+                "name": m.name,
+                "value": m.code,
+            }
+            for m in modules.categories
+        ]
+
+    return blacksheep.Response(
+        status=200,
+        content=blacksheep.Content(
+            content_type=b"application/json",
+            data=orjson.dumps(
+                data
+            )
+        )
+    )
+    
 
 @docs(api_docs.API)
 @blacksheep.route("/api")
