@@ -5,7 +5,7 @@ import datetime
 import re
 import typing
 import collections
-import icalendar  # pyright: ignore[reportMissingTypeStubs]
+import icalendar
 import orjson
 from timetable import models
 
@@ -96,7 +96,9 @@ class EventDisplayData:
         # LOCATIONS
 
         if event.locations and len(event.locations) > 1:
-            locations: dict[tuple[str, str], list[models.Location]] = collections.defaultdict(list)
+            locations: dict[tuple[str, str], list[models.Location]] = (
+                collections.defaultdict(list)
+            )
 
             for loc in event.locations:
                 locations[(loc.campus, loc.building)].append(loc)
@@ -119,9 +121,9 @@ class EventDisplayData:
             loc = event.locations[0]
             building = models.BUILDINGS[loc.campus][loc.building]
             campus = models.CAMPUSES[loc.campus]
-            room = str(loc).split('.')[1]
+            room = str(loc).split(".")[1]
             location = f"{room} ({building}, {campus})"
-            
+
             if (e := event.event_type).lower().startswith("synchronous"):
                 location += f", {e}"
         else:
@@ -159,33 +161,23 @@ class EventDisplayData:
 def generate_ical_file(events: list[models.Event]) -> bytes:
     display_data = EventDisplayData.from_events(events)
 
-    calendar = icalendar.Calendar()  # pyright: ignore[reportPrivateImportUsage]
-    calendar.add("METHOD", "PUBLISH")  # pyright: ignore[reportUnknownMemberType]
-    calendar.add(  # pyright: ignore[reportUnknownMemberType]
-        "PRODID", "-//nova@redbrick.dcu.ie//TimetableSync//EN"
-    )
-    calendar.add("VERSION", "2.0")  # pyright: ignore[reportUnknownMemberType]
+    calendar = icalendar.Calendar()
+    calendar.add("METHOD", "PUBLISH")
+    calendar.add("PRODID", "-//nova@redbrick.dcu.ie//TimetableSync//EN")
+    calendar.add("VERSION", "2.0")
 
     for item in display_data:
-        event = icalendar.Event()  # pyright: ignore[reportPrivateImportUsage]
-        event.add("UID", item.identity)  # pyright: ignore[reportUnknownMemberType]
-        event.add(  # pyright: ignore[reportUnknownMemberType]
-            "DTSTAMP", item.generated_at
-        )
-        event.add(  # pyright: ignore[reportUnknownMemberType]
-            "LAST-MODIFIED", item.last_modified
-        )
-        event.add(  # pyright: ignore[reportUnknownMemberType]
-            "DTSTART", item.start_time
-        )
-        event.add("DTEND", item.end_time)  # pyright: ignore[reportUnknownMemberType]
-        event.add("SUMMARY", item.summary)  # pyright: ignore[reportUnknownMemberType]
-        event.add("LOCATION", item.location)  # pyright: ignore[reportUnknownMemberType]
-        event.add(  # pyright: ignore[reportUnknownMemberType]
-            "DESCRIPTION", item.description
-        )
-        event.add("CLASS", "PUBLIC")  # pyright: ignore[reportUnknownMemberType]
-        calendar.add_component(event)  # pyright: ignore[reportUnknownMemberType]
+        event = icalendar.Event()
+        event.add("UID", item.identity)
+        event.add("DTSTAMP", item.generated_at)
+        event.add("LAST-MODIFIED", item.last_modified)
+        event.add("DTSTART", item.start_time)
+        event.add("DTEND", item.end_time)
+        event.add("SUMMARY", item.summary)
+        event.add("LOCATION", item.location)
+        event.add("DESCRIPTION", item.description)
+        event.add("CLASS", "PUBLIC")
+        calendar.add_component(event)
 
     return calendar.to_ical()
 

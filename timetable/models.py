@@ -122,8 +122,7 @@ class ActivityType(DisplayEnum):
 class ModelBase(abc.ABC):
     @classmethod
     @abc.abstractmethod
-    def from_payload(cls, payload: dict[str, typing.Any]) -> typing.Self:
-        ...
+    def from_payload(cls, payload: dict[str, typing.Any]) -> typing.Self: ...
 
 
 @dataclasses.dataclass
@@ -402,7 +401,9 @@ class Location(ModelBase):
         raise NotImplementedError
 
     @classmethod
-    def from_payloads(cls, payload: dict[str, typing.Any]) -> list[Location]:  # TODO: why can't I use typing.Self here?
+    def from_payloads(
+        cls, payload: dict[str, typing.Any]
+    ) -> list[Location]:
         location: str = payload["Location"]
         locations: list[str] = []
 
@@ -479,6 +480,7 @@ class APIError:
     """HTTP status code."""
     message: str
     """Error message."""
+
 
 @dataclasses.dataclass
 class InvalidCodeError(Exception):

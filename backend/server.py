@@ -22,10 +22,9 @@ api = api_.API()
 docs = OpenAPIHandler(
     info=Info(title="TimetableSync API", version=__version__),
     ui_path="/api/api_docs",
-    json_spec_path="/api/openapi.json"
+    json_spec_path="/api/openapi.json",
 )
 docs.bind_app(app)
-
 
 
 @app.on_start
@@ -80,8 +79,8 @@ async def all_category_values(
             status=400,
             content=blacksheep.Content(
                 content_type=b"text/plain",
-                data=b"Invalid value provided."
-            )
+                data=b"Invalid value provided.",
+            ),
         )
 
     courses, modules = await get_or_fetch_and_cache_categories()
@@ -90,7 +89,7 @@ async def all_category_values(
         data = [c.name for c in courses.categories]
     else:
         assert category_type == "modules"
-        data =  [
+        data = [
             {
                 "name": m.name,
                 "value": m.code,
@@ -102,12 +101,10 @@ async def all_category_values(
         status=200,
         content=blacksheep.Content(
             content_type=b"application/json",
-            data=orjson.dumps(
-                data
-            )
-        )
+            data=orjson.dumps(data),
+        ),
     )
-    
+
 
 @docs(api_docs.API)
 @blacksheep.route("/api")

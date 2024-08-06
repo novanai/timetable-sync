@@ -3,7 +3,7 @@ import datetime
 import typing
 import orjson
 
-from thefuzz import process  # pyright: ignore[reportMissingTypeStubs]
+from thefuzz import process
 import aiohttp
 import logging
 
@@ -153,7 +153,10 @@ class API:
         return models.Category.from_payload({"Results": results, "Count": count})
 
     async def get_category_results(
-        self, identity: models.CategoryType, query: str | None = None, count: int | None = None,
+        self,
+        identity: models.CategoryType,
+        query: str | None = None,
+        count: int | None = None,
     ) -> models.Category | None:
         """Get results for a certain category type, if cached.
 
@@ -217,11 +220,11 @@ class API:
         # TODO: use https://github.com/rapidfuzz/RapidFuzz directly instead of thefuzz
         for item in results.categories:
             item_ratios: list[int] = [
-                process.default_scorer(query, item.name),  # pyright: ignore[reportUnknownMemberType]
+                process.default_scorer(query, item.name),
             ]
             if item.description:
                 item_ratios.append(
-                    process.default_scorer(query, item.description),  # pyright: ignore[reportUnknownMemberType]
+                    process.default_scorer(query, item.description),
                 )
             ratios.append((item, max(item_ratios)))
 
@@ -350,7 +353,7 @@ class API:
         timetable.events = events
 
         return timetable
-    
+
     async def generate_course_timetable(
         self,
         course_code: str,
