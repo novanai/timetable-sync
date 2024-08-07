@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import collections
 import dataclasses
 import datetime
 import re
 import typing
-import collections
+
 import icalendar
 import orjson
+
 from timetable import models
 
 ORDER: str = "BG123456789"
@@ -36,6 +38,13 @@ def to_isoformat(text: str) -> datetime.datetime | None:
         return datetime.datetime.fromisoformat(text)
     except ValueError:
         return None
+
+
+def year_start_end_dates() -> tuple[datetime.datetime, datetime.datetime]:
+    current_year = datetime.datetime.now(datetime.timezone.utc).year
+    start = datetime.datetime(current_year, 9, 1)
+    end = datetime.datetime(current_year + 1, 5, 1)
+    return (start, end)
 
 
 @dataclasses.dataclass
@@ -74,18 +83,17 @@ class EventDisplayData:
         name = re.sub(r"\[.*?\]", "", n) if (n := event.module_name) else event.name
 
         # TODO: is this first if block strictly necessary, as this will apply to a minimal set of modules (e.g. CA116)?
-        # TODO: rename `ac` to `activity`
         if event.description and event.description.lower().strip() == "lab":
-            ac = "Lab"
+            activity = "Lab"
         elif event.parsed_name_data:
-            ac = event.parsed_name_data.activity_type.display()
+            activity = event.parsed_name_data.activity_type.display()
         else:
-            ac = ""
+            activity = ""
 
-        if ac and event.group_name:
-            summary = f"({ac}, Group {event.group_name})"
-        elif ac:
-            summary = f"({ac})"
+        if activity and event.group_name:
+            summary = f"({activity}, Group {event.group_name})"
+        elif activity:
+            summary = f"({activity})"
         elif event.group_name:
             summary = f"(Group {event.group_name})"
         else:
@@ -131,12 +139,16 @@ class EventDisplayData:
 
         # DESCRIPTION
 
-        if not ac:
+        if not activity:
             description = event.description
-        elif ac and event.description and event.description.lower() != ac.lower():
-            description = f"{event.description}, {ac}"
+        elif (
+            activity
+            and event.description
+            and event.description.lower() != activity.lower()
+        ):
+            description = f"{event.description}, {activity}"
         else:
-            description = ac
+            description = activity
 
         event_type = (
             data.delivery_type.display()

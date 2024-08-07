@@ -4,20 +4,20 @@ import abc
 import dataclasses
 import datetime
 import enum
+import logging
 import re
 import typing
 
 from timetable import utils
-import logging
 
 logger = logging.getLogger(__name__)
 
 LOCATION_REGEX = re.compile(
     r"^((?P<campus>[A-Z]{3})\.)?(?P<building>VB|[A-Z][AC-FH-Z]?)(?P<floor>[BG1-9])(?P<room>[0-9\-A-Za-z ()]+)$"
 )
-# TODO: rename `courses` to `modules`
+
 EVENT_NAME_REGEX = re.compile(
-    r"^(?P<courses>([A-Za-z0-9]+\/?)+)(\[|\()?(?P<semester>[0-2])(\]|\))?(?P<delivery>OC|AY|SY)\/(?P<activity>P|L|T|W|S)[0-9]\/(?P<group>[0-9]+).*$"
+    r"^(?P<modules>([A-Za-z0-9]+\/?)+)(\[|\()?(?P<semester>[0-2])(\]|\))?(?P<delivery>OC|AY|SY)\/(?P<activity>P|L|T|W|S)[0-9]\/(?P<group>[0-9]+).*$"
 )
 
 CAMPUSES = {"AHC": "All Hallows", "GLA": "Glasnevin", "SPC": "St Patrick's"}
@@ -129,8 +129,7 @@ class ModelBase(abc.ABC):
 class Category(ModelBase):
     """Information about a category."""
 
-    # TODO: why was this called `categories` instead of `items`
-    categories: list[CategoryItem]
+    items: list[CategoryItem]
     """All the items of this category."""
     count: int
     """The number of items in this category."""
@@ -138,8 +137,8 @@ class Category(ModelBase):
     @classmethod
     def from_payload(cls, payload: dict[str, typing.Any]) -> typing.Self:
         return cls(
-            [CategoryItem.from_payload(c) for c in payload["Results"]],
-            payload["Count"],
+            items=[CategoryItem.from_payload(c) for c in payload["Results"]],
+            count=payload["Count"],
         )
 
 
@@ -186,12 +185,12 @@ class CategoryItem(ModelBase):
             code = name
 
         return cls(
-            payload["Description"].strip() or None,
-            cat_type,
-            payload["ParentCategoryIdentities"],
-            payload["Identity"],
-            name,
-            code,
+            description=payload["Description"].strip() or None,
+            category_type=cat_type,
+            parent_categories=payload["ParentCategoryIdentities"],
+            identity=payload["Identity"],
+            name=name,
+            code=code,
         )
 
 
@@ -214,10 +213,10 @@ class CategoryItemTimetable(ModelBase):
     @classmethod
     def from_payload(cls, payload: dict[str, typing.Any]) -> typing.Self:
         return cls(
-            payload["CategoryTypeIdentity"],
-            payload["Identity"],
-            payload["Name"],
-            [Event.from_payload(e) for e in payload["Results"]],
+            category_type=payload["CategoryTypeIdentity"],
+            identity=payload["Identity"],
+            name=payload["Name"],
+            events=[Event.from_payload(e) for e in payload["Results"]],
         )
 
 
@@ -325,13 +324,6 @@ class Event(ModelBase):
 class ParsedNameData:
     """Data parsed from the event name into proper formats."""
 
-    course_codes: list[str]
-    """**DEPRECATED** - Incorrectly named, use `module_codes` instead.
-
-    A list of module codes this event is for.
-    ### Example
-    `["PS114", "PS114A"]`
-    """
     module_codes: list[str]
     """A list of module codes this event is for.
     ### Example
@@ -350,7 +342,7 @@ class ParsedNameData:
     def from_payload(cls, data: str) -> typing.Self | None:
         data = data.replace(" ", "")
         if match := EVENT_NAME_REGEX.match(data):
-            courses = match.group("courses")
+            modules = match.group("modules")
             semester = Semester(int(match.group("semester")))
             delivery = dt if (dt := match.group("delivery")) != "0C" else "OC"
             delivery_type = DeliveryType(delivery)
@@ -358,15 +350,14 @@ class ParsedNameData:
             # TODO: group is actually optional, I think
             group = int(match.group("group"))
 
-            courses = [course for course in courses.split("/") if course.strip()]
+            modules = [course for course in modules.split("/") if course.strip()]
 
             return cls(
-                courses,
-                courses,
-                semester,
-                delivery_type,
-                activity_type,
-                group,
+                module_codes=modules,
+                semester=semester,
+                delivery_type=delivery_type,
+                activity_type=activity_type,
+                group_number=group,
             )
         else:
             logger.warning(f"Failed to parse name: '{data}'")
@@ -401,9 +392,7 @@ class Location(ModelBase):
         raise NotImplementedError
 
     @classmethod
-    def from_payloads(
-        cls, payload: dict[str, typing.Any]
-    ) -> list[Location]:
+    def from_payloads(cls, payload: dict[str, typing.Any]) -> list[Location]:
         location: str = payload["Location"]
         locations: list[str] = []
 
@@ -424,7 +413,9 @@ class Location(ModelBase):
                 floor = match.group("floor")
                 room = match.group("room")
 
-                final_locations.append(cls(campus, building, floor, room))
+                final_locations.append(
+                    cls(campus=campus, building=building, floor=floor, room=room)
+                )
 
         if final_locations:
             return final_locations
@@ -434,7 +425,7 @@ class Location(ModelBase):
         # fallback
         campus, loc = location.split(".")
 
-        return [cls(campus, "", "", loc, True)]
+        return [cls(campus=campus, building="", floor="", room=loc, error=True)]
 
     def __str__(self) -> str:
         return f"{self.campus}.{self.building}{self.floor}{self.room}"
@@ -484,4 +475,7 @@ class APIError:
 
 @dataclasses.dataclass
 class InvalidCodeError(Exception):
+    """Invalid code error."""
+
     code: str
+    """The offending code."""

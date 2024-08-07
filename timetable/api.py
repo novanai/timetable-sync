@@ -1,14 +1,14 @@
 import asyncio
 import datetime
-import typing
-import orjson
-
-from thefuzz import process
-import aiohttp
 import logging
+import typing
 
-from timetable import models, cache as cache_
+import aiohttp
+import orjson
+from rapidfuzz import fuzz
 
+from timetable import cache as cache_
+from timetable import models, utils
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,7 @@ class API:
 
     @property
     def session(self) -> aiohttp.ClientSession:
+        """`ClientSession` to use for API requests."""
         if not self._session:
             self._session = aiohttp.ClientSession()
         return self._session
@@ -214,17 +215,16 @@ class API:
             The items which matched the search query with a greater then 0.8 match,
             sorted from highest match to lowest.
         """
-        count = count if count is not None else len(results.categories)
-        ratios: list[tuple[models.CategoryItem, int]] = []
+        count = count if count is not None else len(results.items)
+        ratios: list[tuple[models.CategoryItem, float]] = []
 
-        # TODO: use https://github.com/rapidfuzz/RapidFuzz directly instead of thefuzz
-        for item in results.categories:
-            item_ratios: list[int] = [
-                process.default_scorer(query, item.name),
+        for item in results.items:
+            item_ratios: list[float] = [
+                fuzz.partial_ratio(query, item.name),
             ]
             if item.description:
                 item_ratios.append(
-                    process.default_scorer(query, item.description),
+                    fuzz.partial_ratio(query, item.description),
                 )
             ratios.append((item, max(item_ratios)))
 
@@ -262,9 +262,9 @@ class API:
         if start or end:
             cache = False
 
-        # TODO: remove these hard-coded dates
-        start = start or datetime.datetime(2023, 9, 11)
-        end = end or datetime.datetime(2024, 4, 14)
+        start_default, end_default = utils.year_start_end_dates()
+        start = start or start_default
+        end = end or end_default
 
         if start > end:
             raise ValueError("Start time cannot be later than end time")
@@ -339,9 +339,9 @@ class API:
         if not start and not end:
             events = timetable.events
         else:
-            # TODO: remove these hard-coded dates
-            start = start or datetime.datetime(2023, 9, 11)
-            end = end or datetime.datetime(2024, 4, 14)
+            start_default, end_default = utils.year_start_end_dates()
+            start = start or start_default
+            end = end or end_default
 
             if not start.tzinfo:
                 start = start.replace(tzinfo=datetime.UTC)
@@ -363,18 +363,18 @@ class API:
         course = await self.fetch_category_results(
             models.CategoryType.PROGRAMMES_OF_STUDY, course_code, cache=False
         )
-        if not course.categories:
+        if not course.items:
             raise models.InvalidCodeError(course_code)
 
         timetable = await self.get_category_timetable(
-            course.categories[0].identity, start=start, end=end
+            course.items[0].identity, start=start, end=end
         )
         # logger.info(f"Using cached timetable for course {course_code}")
         if not timetable:
             # logger.info(f"Fetching timetable for course {course_code}")
             timetables = await self.fetch_category_timetable(
                 models.CategoryType.PROGRAMMES_OF_STUDY,
-                [course.categories[0].identity],
+                [course.items[0].identity],
                 start=start,
                 end=end,
                 cache=True,
@@ -395,10 +395,10 @@ class API:
             module = await self.fetch_category_results(
                 models.CategoryType.MODULES, mod, cache=False
             )
-            if not module.categories:
+            if not module.items:
                 raise models.InvalidCodeError(mod)
 
-            identities.append(module.categories[0].identity)
+            identities.append(module.items[0].identity)
 
         events: list[models.Event] = []
         to_fetch: list[str] = []

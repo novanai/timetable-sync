@@ -1,11 +1,13 @@
+import datetime
+
 from blacksheep.server.openapi.common import (
-    ParameterInfo,
-    ResponseInfo,
     ContentInfo,
     EndpointDocs,
+    ParameterInfo,
+    ResponseInfo,
 )
+
 from timetable import models
-import datetime
 
 API = EndpointDocs(
     summary="Generate a timetable.",
@@ -106,7 +108,6 @@ END:VCALENDAR
                                 weeks=[3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
                                 group_name=None,
                                 parsed_name_data=models.ParsedNameData(
-                                    course_codes=["COMSCI1"],
                                     module_codes=["CA116"],
                                     semester=models.Semester.SEMESTER_1,
                                     delivery_type=models.DeliveryType.ON_CAMPUS,

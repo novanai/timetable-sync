@@ -1,17 +1,17 @@
+import datetime
+import logging
 import time
 import traceback
+
 import aiohttp
 import blacksheep
 import orjson
-import datetime
-import logging
-from backend import __version__
-from timetable import api as api_, models, utils
-
-from backend import api_docs
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from openapidocs.v3 import Info  # pyright: ignore[reportMissingTypeStubs]
 
+from backend import __version__, api_docs
+from timetable import api as api_
+from timetable import models, utils
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ async def all_category_values(
     courses, modules = await get_or_fetch_and_cache_categories()
 
     if category_type == "courses":
-        data = [c.name for c in courses.categories]
+        data = [c.name for c in courses.items]
     else:
         assert category_type == "modules"
         data = [
@@ -94,7 +94,7 @@ async def all_category_values(
                 "name": m.name,
                 "value": m.code,
             }
-            for m in modules.categories
+            for m in modules.items
         ]
 
     return blacksheep.Response(
