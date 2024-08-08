@@ -184,7 +184,6 @@ async def gen_course_timetable(
     start: datetime.datetime | None = None,
     end: datetime.datetime | None = None,
 ) -> tuple[bytes, bool]:
-    # now = time.time()
     logger.info(f"Generating timetable for course {course_code}")
 
     try:
@@ -198,10 +197,6 @@ async def gen_course_timetable(
         assert format is models.ResponseFormat.JSON
         calendar = utils.generate_json_file(events)
 
-    # logger.info(
-    #     f"Generated {format.value} file for course {course.categories[0].name} in {round(time.time() - now, 3)}s"
-    # )
-
     return calendar, False
 
 
@@ -211,7 +206,6 @@ async def gen_modules_timetable(
     start: datetime.datetime | None = None,
     end: datetime.datetime | None = None,
 ) -> tuple[bytes, bool]:
-    # now = time.time()
     modules = [m.strip() for m in modules_str.split(",")]
 
     logger.info(f"Generating timetable for modules {', '.join(modules)}")
@@ -226,10 +220,6 @@ async def gen_modules_timetable(
     else:
         assert format is models.ResponseFormat.JSON
         calendar = utils.generate_json_file(events)
-
-    # logger.info(
-    #     f"Generated {format.value} file for modules {', '.join(modules)} in {round(time.time() - now, 3)}s"
-    # )
 
     return calendar, False
 

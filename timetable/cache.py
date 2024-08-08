@@ -24,7 +24,7 @@ class Cache:
         ----------
         key : str
             A unique identifier of the data being cached.
-        data : dict[str, Any]
+        data : dict[str, typing.Any]
             The data to cache.
         """
         await self.redis_conn.set(key, orjson.dumps(data))
@@ -41,7 +41,7 @@ class Cache:
 
         Returns
         -------
-        dict[str, Any]
+        dict[str, typing.Any]
             The data, if found.
         None
             If the data was not found.

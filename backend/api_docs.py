@@ -107,13 +107,13 @@ END:VCALENDAR
                                 staff_member="Blott S",
                                 weeks=[3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
                                 group_name=None,
-                                parsed_name_data=models.ParsedNameData(
+                                parsed_name_data=[models.ParsedNameData(
                                     module_codes=["CA116"],
                                     semester=models.Semester.SEMESTER_1,
                                     delivery_type=models.DeliveryType.ON_CAMPUS,
                                     activity_type=models.ActivityType.LECTURE,
                                     group_number=1,
-                                ),
+                                )],
                             )
                         ],
                     ],

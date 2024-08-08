@@ -39,11 +39,12 @@ def to_isoformat(text: str) -> datetime.datetime | None:
     except ValueError:
         return None
 
-
 def year_start_end_dates() -> tuple[datetime.datetime, datetime.datetime]:
-    current_year = datetime.datetime.now(datetime.timezone.utc).year
-    start = datetime.datetime(current_year, 9, 1)
-    end = datetime.datetime(current_year + 1, 5, 1)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    start_year = now.year if now.month >= 9 else now.year - 1
+    end_year = now.year + 1 if now.month >= 9 else now.year
+    start = datetime.datetime(start_year, 9, 1)
+    end = datetime.datetime(end_year, 5, 1)
     return (start, end)
 
 
@@ -86,7 +87,7 @@ class EventDisplayData:
         if event.description and event.description.lower().strip() == "lab":
             activity = "Lab"
         elif event.parsed_name_data:
-            activity = event.parsed_name_data.activity_type.display()
+            activity = event.parsed_name_data[0].activity_type.display()
         else:
             activity = ""
 
@@ -151,7 +152,7 @@ class EventDisplayData:
             description = activity
 
         event_type = (
-            data.delivery_type.display()
+            data[0].delivery_type.display()
             if (data := event.parsed_name_data)
             else event.event_type
         )

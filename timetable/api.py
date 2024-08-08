@@ -247,9 +247,9 @@ class API:
             The type of category to get results in.
         category_identities : list[str]
             The identities of the categories to get timetables for.
-        start : datetime.datetime | None, default 2023-9-11
+        start : datetime.datetime | None, default Sept 1 of the current academic years
             The start date/time of the timetable.
-        end : datetime.datetime | None, default 2024-5-5
+        end : datetime.datetime | None, default May 1 of the current academic years
             The end date/time of the timetable.
         cache : bool, default True
             Whether to cache the results. If start or end is specified, cache is set to False.
@@ -322,7 +322,11 @@ class API:
         ----------
         category_identity : str
             The identity of the category to get the timetable for.
-
+        start : datetime.datetime | None, default Sept 1 of the current academic years
+            The start date/time of the timetable.
+        end : datetime.datetime | None, default May 1 of the current academic years
+            The end date/time of the timetable.
+        
         Returns
         -------
         models.CategoryItemTimetable
@@ -360,6 +364,22 @@ class API:
         start: datetime.datetime | None,
         end: datetime.datetime | None,
     ) -> list[models.Event]:
+        """Generate a timetable for a course.
+        
+        Parameters
+        ----------
+        course_code : str
+            The course code to generate a timetable for.
+        start : datetime.datetime | None, default Sept 1 of the current academic years
+            The start date/time of the timetable.
+        end : datetime.datetime | None, default May 1 of the current academic years
+            The end date/time of the timetable.
+    
+        Returns
+        -------
+        list[models.Event]
+            The events on the timetable.
+        """
         course = await self.fetch_category_results(
             models.CategoryType.PROGRAMMES_OF_STUDY, course_code, cache=False
         )
@@ -369,9 +389,7 @@ class API:
         timetable = await self.get_category_timetable(
             course.items[0].identity, start=start, end=end
         )
-        # logger.info(f"Using cached timetable for course {course_code}")
         if not timetable:
-            # logger.info(f"Fetching timetable for course {course_code}")
             timetables = await self.fetch_category_timetable(
                 models.CategoryType.PROGRAMMES_OF_STUDY,
                 [course.items[0].identity],
@@ -385,30 +403,45 @@ class API:
 
     async def generate_modules_timetable(
         self,
-        modules: list[str],
+        module_codes: list[str],
         start: datetime.datetime | None,
         end: datetime.datetime | None,
     ) -> list[models.Event]:
+        """Generate a timetable for a course.
+        
+        Parameters
+        ----------
+        module_codes : list[str]
+            The module codes to generate a timetable for.
+        start : datetime.datetime | None, default Sept 1 of the current academic years
+            The start date/time of the timetable.
+        end : datetime.datetime | None, default May 1 of the current academic years
+            The end date/time of the timetable.
+    
+        Returns
+        -------
+        list[models.Event]
+            The events on the timetable.
+        """
         identities: list[str] = []
 
-        for mod in modules:
+        for code in module_codes:
             module = await self.fetch_category_results(
-                models.CategoryType.MODULES, mod, cache=False
+                models.CategoryType.MODULES, code, cache=False
             )
             if not module.items:
-                raise models.InvalidCodeError(mod)
+                raise models.InvalidCodeError(code)
 
             identities.append(module.items[0].identity)
 
         events: list[models.Event] = []
         to_fetch: list[str] = []
 
-        for mod, id_ in zip(modules, identities):
-            if timetable := await self.get_category_timetable(id_, start, end):
-                # logger.info(f"Using cached timetable for module {mod}")
+        for id_ in identities:
+            timetable = await self.get_category_timetable(id_, start, end)
+            if timetable:
                 events.extend(timetable.events)
             else:
-                # logger.info(f"Fetching timetable for module {mod}")
                 to_fetch.append(id_)
 
         if to_fetch:
