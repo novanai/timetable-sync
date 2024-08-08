@@ -326,7 +326,7 @@ class API:
             The start date/time of the timetable.
         end : datetime.datetime | None, default May 1 of the current academic years
             The end date/time of the timetable.
-        
+
         Returns
         -------
         models.CategoryItemTimetable
@@ -365,7 +365,7 @@ class API:
         end: datetime.datetime | None,
     ) -> list[models.Event]:
         """Generate a timetable for a course.
-        
+
         Parameters
         ----------
         course_code : str
@@ -374,7 +374,7 @@ class API:
             The start date/time of the timetable.
         end : datetime.datetime | None, default May 1 of the current academic years
             The end date/time of the timetable.
-    
+
         Returns
         -------
         list[models.Event]
@@ -408,7 +408,7 @@ class API:
         end: datetime.datetime | None,
     ) -> list[models.Event]:
         """Generate a timetable for a course.
-        
+
         Parameters
         ----------
         module_codes : list[str]
@@ -417,7 +417,7 @@ class API:
             The start date/time of the timetable.
         end : datetime.datetime | None, default May 1 of the current academic years
             The end date/time of the timetable.
-    
+
         Returns
         -------
         list[models.Event]

@@ -39,6 +39,7 @@ def to_isoformat(text: str) -> datetime.datetime | None:
     except ValueError:
         return None
 
+
 def year_start_end_dates() -> tuple[datetime.datetime, datetime.datetime]:
     now = datetime.datetime.now(datetime.timezone.utc)
     start_year = now.year if now.month >= 9 else now.year - 1

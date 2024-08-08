@@ -358,7 +358,7 @@ class ParsedNameData:
 
     @classmethod
     def from_payloads(cls, data: str) -> list[ParsedNameData]:
-        # Ignore anything without a `/` as this guarantees it 
+        # Ignore anything without a `/` as this guarantees it
         # won't match the regex and speeds up processing
         if "/" not in data:
             return []
@@ -370,15 +370,19 @@ class ParsedNameData:
         if not match:
             logger.warning(f"Failed to parse name: '{data}'")
             return []
-        
+
         datas: list[ParsedNameData] = []
         remainder = ""
 
         while match is not None:
-            modules = [module for module in match.group("modules").split("/") if module.strip()]
+            modules = [
+                module for module in match.group("modules").split("/") if module.strip()
+            ]
             semester = Semester(int(match.group("semester")))
             # TODO: delivery_type is sometimes `AS`, should this be corrected to `AY`?
-            delivery_type = DeliveryType("OC" if (dt := match.group("delivery")) == "0C" else dt)
+            delivery_type = DeliveryType(
+                "OC" if (dt := match.group("delivery")) == "0C" else dt
+            )
             activity_type = ActivityType(match.group("activity"))
             group = int(g) if (g := match.group("group")) else None
 
@@ -389,7 +393,7 @@ class ParsedNameData:
                     delivery_type=delivery_type,
                     activity_type=activity_type,
                     group_number=group,
-                )   
+                )
             )
 
             remainder = match.group("remainder")
