@@ -1,11 +1,13 @@
+import datetime
+
 from blacksheep.server.openapi.common import (
-    ParameterInfo,
-    ResponseInfo,
     ContentInfo,
     EndpointDocs,
+    ParameterInfo,
+    ResponseInfo,
 )
+
 from timetable import models
-import datetime
 
 API = EndpointDocs(
     summary="Generate a timetable.",
@@ -24,19 +26,19 @@ API = EndpointDocs(
             example="CA103,CA116,MS134",
         ),
         "format": ParameterInfo(
-            "The response format.\n\nAllowed values: 'ical' or 'json'",
+            "The response format.\n\nAllowed values: 'ical' or 'json'.\nDefault: 'ical'.",
             str,
             required=False,
             example="json",
         ),
         "start": ParameterInfo(
-            "Only get timetable events later than this datetime",
+            "Only get timetable events later than this datetime.",
             str,
             required=False,
             example="2023-10-31T13:00:00",
         ),
         "end": ParameterInfo(
-            "Only get timetable events earlier than this datetime",
+            "Only get timetable events earlier than this datetime.",
             str,
             required=False,
             example="2024-04-23T10:00:00",
@@ -45,8 +47,9 @@ API = EndpointDocs(
     responses={
         200: ResponseInfo(
             (
-                "Successfully generated a timetable. However, it is not guaranteed to actually contain any events.\n\nIf format "
-                "was 'json', response will be in json format. Otherwise if format was 'ical', response will be in plain text."
+                "Successfully generated a timetable. However, it is not guaranteed to actually contain any events.\n\n"
+                "If format was 'json', response will be in json format. Otherwise if format was 'ical' or not specified, "
+                "response will be in plain text."
             ),
             content=[
                 ContentInfo(
@@ -104,13 +107,15 @@ END:VCALENDAR
                                 staff_member="Blott S",
                                 weeks=[3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
                                 group_name=None,
-                                parsed_name_data=models.ParsedNameData(
-                                    course_codes=["CA116"],
-                                    semester=models.Semester.SEMESTER_1,
-                                    delivery_type=models.DeliveryType.ON_CAMPUS,
-                                    activity_type=models.ActivityType.LECTURE,
-                                    group_number=1,
-                                ),
+                                parsed_name_data=[
+                                    models.ParsedNameData(
+                                        module_codes=["CA116"],
+                                        semester=models.Semester.SEMESTER_1,
+                                        delivery_type=models.DeliveryType.ON_CAMPUS,
+                                        activity_type=models.ActivityType.LECTURE,
+                                        group_number=1,
+                                    )
+                                ],
                             )
                         ],
                     ],
