@@ -402,6 +402,7 @@ class API:
                 id_, start=start, end=end
             )
             if timetable:
+                logger.info(f"Using cached events for course {id_} (total {len(timetable.events)})")
                 events.extend(timetable.events)
             else:
                 to_fetch.append(id_)
@@ -414,6 +415,7 @@ class API:
                 end=end,
             )
             for timetable in timetables:
+                logger.info(f"Fetched events for course {timetable.name} (total {len(timetable.events)})")
                 events.extend(timetable.events)
 
         return events
@@ -457,6 +459,7 @@ class API:
         for id_ in module_identities:
             timetable = await self.get_category_timetable(id_, start, end)
             if timetable:
+                logger.info(f"Using cached events for module {id_} (total {len(timetable.events)})")
                 events.extend(timetable.events)
             else:
                 to_fetch.append(id_)
@@ -470,6 +473,7 @@ class API:
                 cache=True,
             )
             for timetable in timetables:
+                logger.info(f"Fetched events for module {timetable.name} (total {len(timetable.events)})")
                 events.extend(timetable.events)
 
         return events

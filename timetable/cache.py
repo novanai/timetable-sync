@@ -4,7 +4,9 @@ import typing
 
 import orjson
 from redis.asyncio import Redis
+import logging
 
+logger = logging.getLogger(__name__)
 
 class Cache:
     """A simple caching implementation using Redis."""
@@ -27,6 +29,7 @@ class Cache:
         data : dict[str, typing.Any]
             The data to cache.
         """
+        logger.info(f"Caching data under {key}")
         await self.redis_conn.set(key, orjson.dumps(data))
         await self.redis_conn.expire(key, expires_in)
 
@@ -45,6 +48,7 @@ class Cache:
         None
             If the data was not found.
         """
+        logger.info(f"Retrieving data under {key}")
         data = await self.redis_conn.get(key)
         if data is None:
             return None
