@@ -1,6 +1,8 @@
 import datetime
 import logging
 import time
+
+import colorhash
 import traceback
 
 import aiohttp
@@ -8,13 +10,17 @@ import blacksheep
 import orjson
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from openapidocs.v3 import Info  # pyright: ignore[reportMissingTypeStubs]
-
+import zoneinfo
 from backend import __version__, api_docs
 from timetable import api as api_
 from timetable import models, utils
+import dataclasses
+import typing
 
 logger = logging.getLogger(__name__)
 
+
+IRELAND_UTC_OFFSET = zoneinfo.ZoneInfo("Europe/Dublin").utcoffset(datetime.datetime.now(datetime.timezone.utc))
 
 app = blacksheep.Application()
 api = api_.API()
@@ -85,17 +91,23 @@ async def all_category_values(
 
     courses, modules = await get_or_fetch_and_cache_categories()
 
+    data: list[str | dict[str, str]]
+
     if category_type == "courses":
-        data = [c.name for c in courses.items]
+        data = list(set(c.name for c in courses.items))
+        data.sort(key=str)
     else:
         assert category_type == "modules"
-        data = [
-            {
-                "name": m.name,
-                "value": m.code,
-            }
-            for m in modules.items
-        ]
+        codes: list[str] = []
+        data = []
+
+        for m in modules.items:
+            if m.code not in codes:
+                data.append({
+                    "name": m.name,
+                    "value": m.code,
+                })
+                codes.append(m.code)
 
     return blacksheep.Response(
         status=200,
@@ -105,6 +117,107 @@ async def all_category_values(
         ),
     )
 
+# TODO: ideally all of the below calendar stuff should be handled on the frontend,
+# this is only a temporary solution
+
+@dataclasses.dataclass
+class CalendarEvent:
+    id: str
+    start: datetime.datetime
+    end: datetime.datetime
+    title: "CalendarEventContent"
+    background_colour: str
+
+    # TODO: calc dst offset for the event time
+    def to_json(self) -> dict[str, typing.Any]:
+        return {
+            "id": self.id,
+            "start": self.start + IRELAND_UTC_OFFSET if IRELAND_UTC_OFFSET is not None else 0,
+            "end": self.end + IRELAND_UTC_OFFSET if IRELAND_UTC_OFFSET is not None else 0,
+            "title": self.title.to_object(),
+            "backgroundColor": self.background_colour,
+        }
+
+@dataclasses.dataclass
+class CalendarEventContent:
+    summary: str
+    description: str
+    location: str
+
+    def to_object(self) -> dict[str, str]:
+        return {
+            "html": f"<b>{self.summary}</b><p>{self.description}</p><p>{self.location}</p>"
+        }
+
+def gather_events(events: list[models.Event]) -> list[CalendarEvent]:
+    all_events: list[CalendarEvent] = []
+
+    for event in events:
+        modules_codes: set[str] = set()
+        for data in event.parsed_name_data:
+            modules_codes.update(data.module_codes)
+
+        event_type = event.parsed_name_data[0].activity_type.display() if event.parsed_name_data else ""
+
+        all_events.append(
+            CalendarEvent(
+                id=event.identity,
+                start=event.start,
+                end=event.end,
+                title=CalendarEventContent(
+                    summary=f"{"/".join(sorted(modules_codes))} {event_type}",
+                    description=("📄 " + event.module_name.split(" ", maxsplit=1)[1]) if event.module_name else "",
+                    # location=utils.generate_location_string(event),
+                    location=("📍 " + ", ".join([f"{loc.building}{loc.floor}{loc.room}" for loc in event.locations])) if event.locations else "",
+                ),
+                background_colour=colorhash.ColorHash("".join(modules_codes), lightness=[0.3], saturation=[0.8]).hex,
+            )
+        )
+
+    return all_events
+
+@docs.ignore()
+@blacksheep.route("/api/calendar")
+async def calendar_api(
+    start: blacksheep.FromQuery[str],
+    end: blacksheep.FromQuery[str],
+    courses: blacksheep.FromQuery[str] | None = None,
+    modules: blacksheep.FromQuery[str] | None = None,
+    
+) -> blacksheep.Response:
+    start_date = utils.to_isoformat(start.value) 
+    end_date = utils.to_isoformat(end.value)
+
+    all_events: list[CalendarEvent] = []
+
+    if courses:
+        codes = courses.value.split(",")
+        logger.info(f"Generating calendar for courses {', '.join(codes)}")
+        events = await api.gather_events_for_courses(
+            codes,
+            start_date,
+            end_date
+        )
+        all_events.extend(gather_events(events))
+            
+
+    if modules:
+        codes = modules.value.split(",")
+        logger.info(f"Generating calendar for modules {', '.join(codes)}")
+        events = await api.gather_events_for_modules(
+            codes, 
+            start_date,
+            end_date
+        )
+        all_events.extend(gather_events(events))
+
+    return blacksheep.Response(
+        200,
+        content=blacksheep.Content(
+            content_type=b"application/json",
+            data=orjson.dumps([e.to_json() for e in all_events]),
+        )
+    )
 
 @docs(api_docs.API)
 @blacksheep.route("/api")
@@ -153,12 +266,12 @@ async def timetable_api(
         )
 
     if course:
-        calendar, error = await gen_course_timetable(
+        calendar, error = await generate_courses_timetables(
             course.value, format_, start_date, end_date
         )
     else:
         assert modules
-        calendar, error = await gen_modules_timetable(
+        calendar, error = await generate_modules_timetables(
             modules.value, format_, start_date, end_date
         )
 
@@ -178,16 +291,17 @@ async def timetable_api(
     )
 
 
-async def gen_course_timetable(
-    course_code: str,
+async def generate_courses_timetables(
+    course_codes: str,
     format: models.ResponseFormat,
     start: datetime.datetime | None = None,
     end: datetime.datetime | None = None,
 ) -> tuple[bytes, bool]:
-    logger.info(f"Generating timetable for course {course_code}")
+    courses = [c.strip() for c in course_codes.split(",")]
+    logger.info(f"Generating timetables for courses {', '.join(courses)}")
 
     try:
-        events = await api.generate_course_timetable(course_code, start, end)
+        events = await api.gather_events_for_courses(courses, start, end)
     except models.InvalidCodeError as e:
         return f"Invalid course code '{e.code}'.".encode(), True
 
@@ -200,18 +314,18 @@ async def gen_course_timetable(
     return calendar, False
 
 
-async def gen_modules_timetable(
-    modules_str: str,
+async def generate_modules_timetables(
+    module_codes: str,
     format: models.ResponseFormat,
     start: datetime.datetime | None = None,
     end: datetime.datetime | None = None,
 ) -> tuple[bytes, bool]:
-    modules = [m.strip() for m in modules_str.split(",")]
+    modules = [m.strip() for m in module_codes.split(",")]
 
     logger.info(f"Generating timetable for modules {', '.join(modules)}")
 
     try:
-        events = await api.generate_modules_timetable(modules, start, end)
+        events = await api.gather_events_for_modules(modules, start, end)
     except models.InvalidCodeError as e:
         return f"Invalid module code '{e.code}'.".encode(), True
 

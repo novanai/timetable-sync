@@ -16,7 +16,7 @@ class Cache:
         self,
         key: str,
         data: dict[str, typing.Any],
-        expires_in: datetime.timedelta | None = None,
+        expires_in: datetime.timedelta,
     ) -> None:
         """Cache `data` under `key`.
 
@@ -28,11 +28,10 @@ class Cache:
             The data to cache.
         """
         await self.redis_conn.set(key, orjson.dumps(data))
-        if expires_in:
-            await self.redis_conn.expire(key, expires_in)
+        await self.redis_conn.expire(key, expires_in)
 
     async def get(self, key: str) -> dict[str, typing.Any] | None:
-        """Get data from the cache.
+        """Get data stored under `key` from the cache.
 
         Parameters
         ----------

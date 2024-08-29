@@ -11,8 +11,7 @@ import orjson
 
 from timetable import models
 
-ORDER: str = "BG123456789"
-TIME_FORMAT: str = "%Y-%m-%dT%H:%M:%SZ"
+ORDER: typing.Final[str] = "BG123456789"
 
 
 def parse_weeks(weeks: str) -> list[int]:
@@ -41,6 +40,16 @@ def to_isoformat(text: str) -> datetime.datetime | None:
 
 
 def year_start_end_dates() -> tuple[datetime.datetime, datetime.datetime]:
+    """Get default start and end dates for the academic year.
+    
+    * Default start date: Sept 1
+    * Default end date: May 1
+
+    Returns
+    -------
+    tuple[datetime.datetime, datetime.datetime]
+        The start and end dates.
+    """
     now = datetime.datetime.now(datetime.timezone.utc)
     start_year = now.year if now.month >= 9 else now.year - 1
     end_year = now.year + 1 if now.month >= 9 else now.year

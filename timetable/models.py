@@ -87,30 +87,47 @@ BUILDINGS = {
     },
 }
 
-TIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
-
 
 class CategoryType(enum.Enum):
-    MODULES = "525fe79b-73c3-4b5c-8186-83c652b3adcc"
-    LOCATIONS = "1e042cb1-547d-41d4-ae93-a1f2c3d34538"
-    PROGRAMMES_OF_STUDY = "241e4d36-60e0-49f8-b27e-99416745d98d"
+    """A category type."""
 
+    MODULES = "525fe79b-73c3-4b5c-8186-83c652b3adcc"
+    """Modules."""
+    LOCATIONS = "1e042cb1-547d-41d4-ae93-a1f2c3d34538"
+    """Locations."""
+    PROGRAMMES_OF_STUDY = "241e4d36-60e0-49f8-b27e-99416745d98d"
+    """Programmes of Study (Courses)."""
 
 class DisplayEnum(enum.Enum):
+    """Enum with method for displaying the value in a proper format."""
+
+    # TODO: make this a property
+    # @property
     def display(self) -> str:
+        """Proper format for enum value."""
         return self.name.replace("_", " ").title()
 
 
 class Semester(DisplayEnum):
+    """The semester."""
+
     ALL_YEAR = 0
+    """All year (both semesters)."""
     SEMESTER_1 = 1
+    """Semester 1."""
     SEMESTER_2 = 2
+    """Semester 2."""
 
 
 class DeliveryType(DisplayEnum):
+    """Delivery type of an event."""
+
     ON_CAMPUS = "OC"
+    """On campus."""
     ASYNCHRONOUS = "AY"
+    """Asynchronous (recorded)."""
     SYNCHRONOUS = "SY"
+    """Synchronous (online, live)."""
 
     def display(self) -> str:
         return DELIVERY_TYPES[self]
@@ -124,15 +141,23 @@ DELIVERY_TYPES: dict[DeliveryType, str] = {
 
 
 class ActivityType(DisplayEnum):
+    """Activity type of an event."""
     PRACTICAL = "P"
+    """Practical."""
     LECTURE = "L"
+    """Lecture."""
     TUTORIAL = "T"
+    """Tutorial."""
     WORKSHOP = "W"
+    """Workshop."""
     SEMINAR = "S"
+    """Seminar."""
     WORKSHOP_SEMINAR = "WS"
-
+    """Workshop seminar."""
 
 class ModelBase(abc.ABC):
+    """Base model class."""
+
     @classmethod
     @abc.abstractmethod
     def from_payload(cls, payload: dict[str, typing.Any]) -> typing.Self: ...
@@ -143,7 +168,7 @@ class Category(ModelBase):
     """Information about a category."""
 
     items: list[CategoryItem]
-    """All the items of this category."""
+    """The category items."""
     count: int
     """The number of items in this category."""
 
@@ -209,6 +234,8 @@ class CategoryItem(ModelBase):
 
 @dataclasses.dataclass
 class CategoryItemTimetable(ModelBase):
+    """A category item's timetable."""
+
     category_type: CategoryType
     """The type of category this timetable is for."""
     identity: str
@@ -235,6 +262,8 @@ class CategoryItemTimetable(ModelBase):
 
 @dataclasses.dataclass
 class Event(ModelBase):
+    """A timetabled event."""
+    
     identity: str
     """Unique identity of the event."""
     start: datetime.datetime
