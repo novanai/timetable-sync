@@ -337,7 +337,7 @@ async def generate_modules_timetables(
 
     return calendar, False
 
-
+# Handle other errors, e.g. ValueError raised by timetable api
 @app.exception_handler(aiohttp.ClientResponseError)
 async def handle_badurl(
     request: blacksheep.Request,

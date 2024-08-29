@@ -269,6 +269,7 @@ class API:
         elif cache is None:
             cache = True
 
+        # TODO: if start is specified, should end default to something else? (e.g. 1 week later)
         start_default, end_default = utils.year_start_end_dates()
         start = start or start_default
         end = end or end_default
@@ -397,15 +398,18 @@ class API:
         events: list[models.Event] = []
         to_fetch: list[str] = []
 
-        for id_ in course_identities:
-            timetable = await self.get_category_timetable(
-                id_, start=start, end=end
-            )
-            if timetable:
-                logger.info(f"Using cached events for course {id_} (total {len(timetable.events)})")
-                events.extend(timetable.events)
-            else:
-                to_fetch.append(id_)
+        if start is None and end is None:
+            for id_ in course_identities:
+                timetable = await self.get_category_timetable(
+                    id_, start=start, end=end
+                )
+                if timetable:
+                    logger.info(f"Using cached events for course {id_} (total {len(timetable.events)})")
+                    events.extend(timetable.events)
+                else:
+                    to_fetch.append(id_)
+        else:
+            to_fetch = course_identities
 
         if to_fetch:
             timetables = await self.fetch_category_timetables(
@@ -456,13 +460,16 @@ class API:
         events: list[models.Event] = []
         to_fetch: list[str] = []
 
-        for id_ in module_identities:
-            timetable = await self.get_category_timetable(id_, start, end)
-            if timetable:
-                logger.info(f"Using cached events for module {id_} (total {len(timetable.events)})")
-                events.extend(timetable.events)
-            else:
-                to_fetch.append(id_)
+        if start is None and end is None:
+            for id_ in module_identities:
+                timetable = await self.get_category_timetable(id_, start, end)
+                if timetable:
+                    logger.info(f"Using cached events for module {id_} (total {len(timetable.events)})")
+                    events.extend(timetable.events)
+                else:
+                    to_fetch.append(id_)
+        else:
+            to_fetch = module_identities
 
         if to_fetch:
             timetables = await self.fetch_category_timetables(
