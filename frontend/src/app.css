@@ -3,7 +3,7 @@
 @import "tailwindcss/utilities";
 
 .ec-time-grid .ec-content .ec-time, .ec-time-grid .ec-content .ec-line {
-    height: 110px !important;
+    height: 96px !important;
 }
 
 .ec-time-grid .ec-content .ec-event-time {

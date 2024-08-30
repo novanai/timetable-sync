@@ -170,7 +170,7 @@ def gather_events(events: list[models.Event]) -> list[CalendarEvent]:
                     # location=utils.generate_location_string(event),
                     location=("📍 " + ", ".join([f"{loc.building}{loc.floor}{loc.room}" for loc in event.locations])) if event.locations else "",
                 ),
-                background_colour=colorhash.ColorHash("".join(modules_codes), lightness=[0.3], saturation=[0.8]).hex,
+                background_colour=colorhash.ColorHash("".join(modules_codes), lightness=[0.7], saturation=[0.5]).hex,
             )
         )
 
