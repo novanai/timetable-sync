@@ -18,7 +18,7 @@
     let plugins = [TimeGrid, ListWeek];
     let options = {
         // Default to day view on smaller devices
-        view: window.innerWidth > 768 ? 'timeGridWeek' : 'timeGridDay',  // https://github.com/vkurko/calendar?tab=readme-ov-file#view
+        view: window.innerWidth > 768 ? 'timeGridWeek' : 'timeGridDay',
         headerToolbar: {
             start: 'prev,next today',
             center: 'title',

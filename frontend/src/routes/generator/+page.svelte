@@ -16,9 +16,9 @@
     <TabItem open title="Course">
         <div class="mb-2">
             {#key course}
-                {`${window.location.protocol}//${window.location.hostname}/api?course=${course != null ? course : ""}`}
+                {`${window.location.protocol}//${window.location.hostname}/api?course=${course != null ? encodeURI(course) : ""}`}
                 <button
-                    use:copy={`${window.location.protocol}//${window.location.hostname}/api?course=${course}`}
+                    use:copy={`${window.location.protocol}//${window.location.hostname}/api?course=${encodeURI(course)}`}
                     on:svelte-copy={(e) => alert("Copied URL to clipboard")}
                     on:svelte-copy:error={(e) => alert(e.detail.message)}
                     title="Copy URL to clipboard"
@@ -33,9 +33,9 @@
     <TabItem title="Modules">
         <div class="mb-2">
         {#key modules}
-                {`${window.location.protocol}//${window.location.hostname}/api?modules=${modules != null ? modules : ""}`}
+                {`${window.location.protocol}//${window.location.hostname}/api?modules=${modules != null ? encodeURI(modules) : ""}`}
                 <button
-                    use:copy={`${window.location.protocol}//${window.location.hostname}/api?modules=${modules}`}
+                    use:copy={`${window.location.protocol}//${window.location.hostname}/api?modules=${encodeURI(modules)}`}
                     on:svelte-copy={(e) => alert("Copied URL to clipboard")}
                     on:svelte-copy:error={(e) => alert(e.detail.message)}
                     title="Copy URL to clipboard"
