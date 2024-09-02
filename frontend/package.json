@@ -15,6 +15,7 @@
 		"@sveltejs/kit": "^2.0.0",
 		"@sveltejs/vite-plugin-svelte": "^3.0.0",
 		"autoprefixer": "^10.4.19",
+		"color-hash": "^2.0.2",
 		"flowbite": "^2.4.1",
 		"flowbite-svelte": "^0.46.15",
 		"flowbite-svelte-icons": "^1.6.1",

@@ -29,9 +29,10 @@ class Cache:
         data : dict[str, typing.Any]
             The data to cache.
         """
-        logger.info(f"Caching data under {key}")
         await self.redis_conn.set(key, orjson.dumps(data))
         await self.redis_conn.expire(key, expires_in)
+
+        logger.info(f"Cached data under {key}")
 
     async def get(self, key: str) -> dict[str, typing.Any] | None:
         """Get data stored under `key` from the cache.
@@ -48,9 +49,10 @@ class Cache:
         None
             If the data was not found.
         """
-        logger.info(f"Retrieving data under {key}")
         data = await self.redis_conn.get(key)
         if data is None:
             return None
+
+        logger.info(f"Retrieved data under {key}")
 
         return orjson.loads(data)

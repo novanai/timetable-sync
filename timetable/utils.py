@@ -30,15 +30,6 @@ def parse_weeks(weeks: str) -> list[int]:
 
     return final
 
-
-def to_isoformat(text: str) -> datetime.datetime | None:
-    """Parse a string to a datetime object, returning None upon failure."""
-    try:
-        return datetime.datetime.fromisoformat(text)
-    except ValueError:
-        return None
-
-
 def year_start_end_dates() -> tuple[datetime.datetime, datetime.datetime]:
     """Get default start and end dates for the academic year.
     
@@ -62,36 +53,36 @@ def year_start_end_dates() -> tuple[datetime.datetime, datetime.datetime]:
 class EventDisplayData:
     """Display data for events."""
 
-    identity: str
-    """Event identity."""
-    generated_at: datetime.datetime
-    """Time this event was generated at."""
-    last_modified: datetime.datetime
-    """Time this event was last modified at."""
-    start_time: datetime.datetime
-    """Time this event starts at."""
-    end_time: datetime.datetime
-    """Time this event ends at."""
     summary: str
-    """Summary of this event."""
+    """Short summary of this event."""
+    summary_long: str
+    """Long summary of this event."""
     location: str
+    """Long location(s) of this event."""
+    location_long: str
     """Location(s) of this event."""
     description: str
     """Description of this event."""
+    description_long: str
+    """Description of this event."""
+    original_event: models.Event
+    """The original event for the display data."""
+
+    def to_full_event_dict(self) -> dict[str, typing.Any]:
+        data = dataclasses.asdict(self.original_event)
+        data["display"] = dataclasses.asdict(self)
+        data["display"].pop("original_event")
+        return data
 
     @classmethod
     def from_events(cls, events: list[models.Event]) -> list[typing.Self]:
-        events.sort(key=lambda x: x.start)
-
         return [cls.from_event(event) for event in events]
 
     @classmethod
     def from_event(cls, event: models.Event) -> typing.Self:
         # SUMMARY
 
-        # TODO: this regex is not always guaranteed to remove the semester number, as it is
-        # not always contained with square brackets, so it must be updated.
-        name = re.sub(r"\[.*?\]", "", n) if (n := event.module_name) else event.name
+        name = re.sub(r"[\[\(][0-2F][\]\)]", "", n, 1) if (n := event.module_name) else event.name
 
         # TODO: is this first if block strictly necessary, as this will apply to a minimal set of modules (e.g. CA116)?
         if event.description and event.description.lower().strip() == "lab":
@@ -102,19 +93,22 @@ class EventDisplayData:
             activity = ""
 
         if activity and event.group_name:
-            summary = f"({activity}, Group {event.group_name})"
+            summary_long = f"({activity}, Group {event.group_name})"
         elif activity:
-            summary = f"({activity})"
+            summary_long = f"({activity})"
         elif event.group_name:
-            summary = f"(Group {event.group_name})"
+            summary_long = f"(Group {event.group_name})"
         else:
-            summary = ""
+            summary_long = ""
 
-        summary = (name + (f" {summary}" if summary else "")).strip()
+        summary_long = (name + (f" {summary_long}" if summary_long else "")).strip()
+        summary_short = name
 
         # LOCATIONS
 
-        if event.locations and len(event.locations) > 1:
+        # TODO: see if we should add event.event_type for AY and SY
+        if event.locations:
+            # dict[(campus, building)] = [locations]
             locations: dict[tuple[str, str], list[models.Location]] = (
                 collections.defaultdict(list)
             )
@@ -122,31 +116,25 @@ class EventDisplayData:
             for loc in event.locations:
                 locations[(loc.campus, loc.building)].append(loc)
 
-            locs: list[str] = []
+            locations_long: list[str] = []
+            locations_short: list[str] = []
             for (campus, building), locs_ in locations.items():
                 building = models.BUILDINGS[campus][building]
                 campus = models.CAMPUSES[campus]
                 locs_ = sorted(locs_, key=lambda r: r.room)
                 locs_ = sorted(locs_, key=lambda r: ORDER.index(r.floor))
-                locs.append(
-                    f"{', '.join((str(loc).split('.')[1] for loc in locs_))} ({building}, {campus})"
+                locations_long.append(
+                    f"{', '.join((f"{loc.building}{loc.floor}{loc.room}" for loc in locs_))} ({building}, {campus})"
+                )
+                locations_short.append(
+                    f"{', '.join((f"{loc.building}{loc.floor}{loc.room}" for loc in locs_))}"
                 )
 
-            final = ", ".join(locs)
-
-            location = final
-
-        elif event.locations:
-            loc = event.locations[0]
-            building = models.BUILDINGS[loc.campus][loc.building]
-            campus = models.CAMPUSES[loc.campus]
-            room = str(loc).split(".")[1]
-            location = f"{room} ({building}, {campus})"
-
-            if (e := event.event_type).lower().startswith("synchronous"):
-                location += f", {e}"
+            location_long = ", ".join(locations_long)
+            location_short = ", ".join(locations_short)
         else:
-            location = event.event_type
+            location_long = event.event_type
+            location_short = event.event_type
 
         # DESCRIPTION
 
@@ -167,17 +155,17 @@ class EventDisplayData:
             else event.event_type
         )
 
-        description = f"{description}, {event_type}"
+        description_long = f"{description}, {event_type}"
+        description_short = f"{f'{activity}, ' if activity else ''}{event_type}"
 
         return cls(
-            event.identity,
-            datetime.datetime.now(datetime.UTC),
-            event.last_modified.astimezone(datetime.UTC),
-            event.start.astimezone(datetime.UTC),
-            event.end.astimezone(datetime.UTC),
-            summary,
-            location,
-            description,
+            summary=summary_short,
+            summary_long=summary_long,
+            location=location_short,
+            location_long=location_long,
+            description=description_short,
+            description_long=description_long,
+            original_event=event,
         )
 
 
@@ -191,11 +179,10 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
 
     for item in display_data:
         event = icalendar.Event()
-        event.add("UID", item.identity)
-        event.add("DTSTAMP", item.generated_at)
-        event.add("LAST-MODIFIED", item.last_modified)
-        event.add("DTSTART", item.start_time)
-        event.add("DTEND", item.end_time)
+        event.add("UID", item.original_event.identity)
+        event.add("LAST-MODIFIED", item.original_event.last_modified)
+        event.add("DTSTART", item.original_event.start)
+        event.add("DTEND", item.original_event.end)
         event.add("SUMMARY", item.summary)
         event.add("LOCATION", item.location)
         event.add("DESCRIPTION", item.description)
@@ -205,5 +192,9 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
     return calendar.to_ical()
 
 
-def generate_json_file(events: list[models.Event]) -> bytes:
-    return orjson.dumps(events)
+def generate_json_file(events: list[models.Event], display: bool | None = None) -> bytes:
+    if not display:
+        return orjson.dumps(events)
+    
+    display_data = EventDisplayData.from_events(events)
+    return orjson.dumps([event.to_full_event_dict() for event in display_data])

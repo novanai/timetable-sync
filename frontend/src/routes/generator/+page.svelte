@@ -13,7 +13,7 @@
 
 
 <Tabs tabStyle="underline" contentClass="p-4 bg-gray-50 rounded-lg">
-    <TabItem open title="Course">
+    <TabItem open title="Courses">
         <div class="mb-2">
             {#key course}
                 {`${window.location.protocol}//${window.location.hostname}/api?course=${course != null ? encodeURI(course) : ""}`}

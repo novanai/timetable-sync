@@ -11,13 +11,19 @@ from timetable import models
 
 API = EndpointDocs(
     summary="Generate a timetable.",
-    description="One of 'course' or 'modules' must be provided, but not both. All other parameters are optional.",
+    description="One of 'course', 'courses' or 'modules' must be provided, but not both. All other parameters are optional.",
     parameters={
         "course": ParameterInfo(
             "The course to generate a timetable for.",
             str,
             required=False,
             example="COMSCI1",
+        ),
+        "courses": ParameterInfo(
+            "The course(s) to generate a timetable for.",
+            str,
+            required=False,
+            example="COMSCI1,COMSCI2"
         ),
         "modules": ParameterInfo(
             "The module(s) to generate a timetable for.",
@@ -30,6 +36,12 @@ API = EndpointDocs(
             str,
             required=False,
             example="json",
+        ),
+        "display": ParameterInfo(
+            "Whether or not to include additional display info",
+            bool,
+            required=False,
+            example="true",
         ),
         "start": ParameterInfo(
             "Only get timetable events later than this datetime.",
@@ -75,6 +87,7 @@ END:VCALENDAR
                     ],
                     content_type="text/plain",
                 ),
+                # TODO: update this to include display properties if available
                 ContentInfo(
                     list[models.Event],
                     examples=[
