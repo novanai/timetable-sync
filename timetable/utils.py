@@ -155,6 +155,7 @@ class EventDisplayData:
             else event.event_type
         )
 
+        # TODO: remove description_long, currently unused and unnecessary
         description_long = f"{description}, {event_type}"
         description_short = f"{f'{activity}, ' if activity else ''}{event_type}"
 
@@ -183,9 +184,9 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
         event.add("LAST-MODIFIED", item.original_event.last_modified)
         event.add("DTSTART", item.original_event.start)
         event.add("DTEND", item.original_event.end)
-        event.add("SUMMARY", item.summary)
-        event.add("LOCATION", item.location)
+        event.add("SUMMARY", item.summary_long)
         event.add("DESCRIPTION", item.description)
+        event.add("LOCATION", item.location_long)
         event.add("CLASS", "PUBLIC")
         calendar.add_component(event)
 

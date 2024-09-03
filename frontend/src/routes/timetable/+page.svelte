@@ -2,7 +2,7 @@
     export let data;
     
     import { AccordionItem, Accordion, Alert, Modal } from 'flowbite-svelte';
-    import { InfoCircleSolid, MapPinAltOutline, FileLinesOutline } from 'flowbite-svelte-icons';
+    import { InfoCircleSolid } from 'flowbite-svelte-icons';
     import Svelecte from 'svelecte';
     import Calendar from '@event-calendar/core';
     import TimeGrid from '@event-calendar/time-grid';
