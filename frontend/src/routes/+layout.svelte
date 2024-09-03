@@ -22,10 +22,13 @@
     <NavHamburger />
     <NavUl {activeUrl}>
         <NavLi href="/">Home</NavLi>
+        <NavLi href="/timetable">Timetable Viewer</NavLi>
         <NavLi href="/generator">Timetable Generator</NavLi>
         <NavLi href="/docs">API Documentation</NavLi>
     </NavUl>
     
 </Navbar>
 
-<slot></slot>
+<div class="m-4">
+    <slot></slot>
+</div>
