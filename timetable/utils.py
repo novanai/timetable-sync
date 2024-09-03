@@ -30,9 +30,10 @@ def parse_weeks(weeks: str) -> list[int]:
 
     return final
 
+
 def year_start_end_dates() -> tuple[datetime.datetime, datetime.datetime]:
     """Get default start and end dates for the academic year.
-    
+
     * Default start date: Sept 1
     * Default end date: May 1
 
@@ -63,8 +64,6 @@ class EventDisplayData:
     """Location(s) of this event."""
     description: str
     """Description of this event."""
-    description_long: str
-    """Description of this event."""
     original_event: models.Event
     """The original event for the display data."""
 
@@ -82,9 +81,12 @@ class EventDisplayData:
     def from_event(cls, event: models.Event) -> typing.Self:
         # SUMMARY
 
-        name = re.sub(r"[\[\(][0-2F][\]\)]", "", n, 1) if (n := event.module_name) else event.name
+        name = (
+            re.sub(r"[\[\(][0-2F][\]\)]", "", n, 1)
+            if (n := event.module_name)
+            else event.name
+        )
 
-        # TODO: is this first if block strictly necessary, as this will apply to a minimal set of modules (e.g. CA116)?
         if event.description and event.description.lower().strip() == "lab":
             activity = "Lab"
         elif event.parsed_name_data:
@@ -106,7 +108,6 @@ class EventDisplayData:
 
         # LOCATIONS
 
-        # TODO: see if we should add event.event_type for AY and SY
         if event.locations:
             # dict[(campus, building)] = [locations]
             locations: dict[tuple[str, str], list[models.Location]] = (
@@ -154,18 +155,14 @@ class EventDisplayData:
             if (data := event.parsed_name_data)
             else event.event_type
         )
-
-        # TODO: remove description_long, currently unused and unnecessary
-        description_long = f"{description}, {event_type}"
-        description_short = f"{f'{activity}, ' if activity else ''}{event_type}"
+        description = f"{f'{activity}, ' if activity else ''}{event_type}"
 
         return cls(
             summary=summary_short,
             summary_long=summary_long,
             location=location_short,
             location_long=location_long,
-            description=description_short,
-            description_long=description_long,
+            description=description,
             original_event=event,
         )
 
@@ -193,9 +190,11 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
     return calendar.to_ical()
 
 
-def generate_json_file(events: list[models.Event], display: bool | None = None) -> bytes:
+def generate_json_file(
+    events: list[models.Event], display: bool | None = None
+) -> bytes:
     if not display:
         return orjson.dumps(events)
-    
+
     display_data = EventDisplayData.from_events(events)
     return orjson.dumps([event.to_full_event_dict() for event in display_data])

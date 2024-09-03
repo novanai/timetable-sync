@@ -1,12 +1,13 @@
 import datetime
+import logging
 import os
 import typing
 
 import orjson
 from redis.asyncio import Redis
-import logging
 
 logger = logging.getLogger(__name__)
+
 
 class Cache:
     """A simple caching implementation using Redis."""

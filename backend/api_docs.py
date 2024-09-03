@@ -23,7 +23,7 @@ API = EndpointDocs(
             "The course(s) to generate a timetable for.",
             str,
             required=False,
-            example="COMSCI1,COMSCI2"
+            example="COMSCI1,COMSCI2",
         ),
         "modules": ParameterInfo(
             "The module(s) to generate a timetable for.",

@@ -6,15 +6,13 @@ import blacksheep
 import orjson
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from openapidocs.v3 import Info  # pyright: ignore[reportMissingTypeStubs]
-import zoneinfo
+
 from backend import __version__, api_docs
 from timetable import api as api_
 from timetable import models, utils
 
 logger = logging.getLogger(__name__)
 
-
-IRELAND_UTC_OFFSET = zoneinfo.ZoneInfo("Europe/Dublin").utcoffset(datetime.datetime.now(datetime.timezone.utc))
 
 app = blacksheep.Application()
 api = api_.API()
@@ -95,10 +93,12 @@ async def all_category_values(
 
         for m in modules.items:
             if m.code not in codes:
-                data.append({
-                    "name": m.name,
-                    "value": m.code,
-                })
+                data.append(
+                    {
+                        "name": m.name,
+                        "value": m.code,
+                    }
+                )
                 codes.append(m.code)
 
     return blacksheep.Response(
@@ -108,6 +108,7 @@ async def all_category_values(
             data=orjson.dumps(data),
         ),
     )
+
 
 @docs(api_docs.API)
 @blacksheep.route("/api")
@@ -136,20 +137,11 @@ async def timetable_api(
         if course and course.strip() not in codes:
             codes.append(course.strip())
 
-        events.extend(
-            await generate_courses_timetables(
-                codes, start_date, end_date
-            )
-        )
+        events.extend(await generate_courses_timetables(codes, start_date, end_date))
     elif modules:
         codes = [m.strip() for m in modules.split(",")]
 
-        events.extend(
-            await generate_modules_timetables(
-                codes, start_date, end_date
-            )
-        )
-
+        events.extend(await generate_modules_timetables(codes, start_date, end_date))
 
     if format_ is models.ResponseFormat.ICAL:
         timetable = utils.generate_ical_file(events)
@@ -188,4 +180,6 @@ async def generate_modules_timetables(
     events = await api.gather_events_for_modules(module_codes, start, end)
 
     return events
+
+
 # TODO: add error handler

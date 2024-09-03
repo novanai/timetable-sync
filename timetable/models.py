@@ -98,6 +98,7 @@ class CategoryType(enum.Enum):
     PROGRAMMES_OF_STUDY = "241e4d36-60e0-49f8-b27e-99416745d98d"
     """Programmes of Study (Courses)."""
 
+
 class DisplayEnum(enum.Enum):
     """Enum with method for displaying the value in a proper format."""
 
@@ -142,6 +143,7 @@ DELIVERY_TYPES: dict[DeliveryType, str] = {
 
 class ActivityType(DisplayEnum):
     """Activity type of an event."""
+
     PRACTICAL = "P"
     """Practical."""
     LECTURE = "L"
@@ -154,6 +156,7 @@ class ActivityType(DisplayEnum):
     """Seminar."""
     WORKSHOP_SEMINAR = "WS"
     """Workshop seminar."""
+
 
 class ModelBase(abc.ABC):
     """Base model class."""
@@ -263,7 +266,7 @@ class CategoryItemTimetable(ModelBase):
 @dataclasses.dataclass
 class Event(ModelBase):
     """A timetabled event."""
-    
+
     identity: str
     """Unique identity of the event."""
     start: datetime.datetime
