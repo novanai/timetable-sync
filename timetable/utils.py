@@ -82,7 +82,7 @@ class EventDisplayData:
         # SUMMARY
 
         name = (
-            re.sub(r"[\[\(][0-2F][\]\)]", "", n, 1)
+            re.sub(r"[\[\(][0-2F,]+[\]\)]", "", n, 1)
             if (n := event.module_name)
             else event.name
         )
