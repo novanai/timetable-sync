@@ -194,6 +194,7 @@
                 clearable
                 closeAfterSelect
                 bind:value={timetable_data[key].selected}
+                on:change={fetchEvents}
             />
         </div>
     {/each}
