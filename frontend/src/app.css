@@ -2,10 +2,55 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
-.ec-time-grid .ec-content .ec-time, .ec-time-grid .ec-content .ec-line {
+.ec-time-grid .ec-content .ec-time,
+.ec-time-grid .ec-content .ec-line {
     height: 96px !important;
 }
 
 .ec-time-grid .ec-content .ec-event-time {
     display: none;
+}
+
+/* styling for selector */
+:root {
+    --sv-min-height: 40px;
+    --sv-bg: oklch(var(--b1));
+    --sv-disabled-bg: oklch(var(--er));
+    --sv-border-color: oklch(var(--nc));
+    /* custom variable */
+    --sv-border: 1px solid var(--sv-border-color);
+    --sv-border-radius: 4px;
+    --sv-general-padding: 4px;
+    --sv-control-bg: var(--sv-bg);
+    --sv-item-wrap-padding: 3px 3px 3px 6px;
+    --sv-item-selected-bg: oklch(var(--b3));
+    --sv-item-btn-color: oklch(var(--nc));
+    --sv-item-btn-color-hover: var(--sv-item-btn-color);
+    --sv-item-btn-bg: var(--sv-item-selected-bg);
+    --sv-item-btn-bg-hover: var(--sv-item-btn-bg);
+    --sv-icon-color: var(--sv-item-btn-color);
+    --sv-icon-color-hover: var(--sv-icon-color);
+    --sv-icon-bg: transparent;
+    --sv-icon-size: 20px;
+    --sv-separator-bg: var(--sv-border-color);
+    --sv-btn-border: 0;
+    --sv-placeholder-color: var(--sv-bg);
+    --sv-dropdown-bg: var(--sv-bg);
+    --sv-dropdown-offset: 1px;
+    --sv-dropdown-border: 1px solid var(--sv-border-color);
+    --sv-dropdown-width: 100%;
+    --sv-dropdown-shadow: 0 2px 6px #444;
+    --sv-dropdown-height: 320px;
+    --sv-dropdown-active-bg: oklch(var(--b3));
+    --sv-dropdown-selected-bg: oklch(var(--b3));
+    --sv-create-kbd-border: 1px solid var(--sv-border-color);
+    --sv-create-kbd-bg: var(--sv-disabled-bg);
+    --sv-create-disabled-bg: oklch(var(--er));
+    --sv-loader-border: 2px solid var(--sv-border-color);
+}
+
+@layer components {
+    .tab-content {
+        @apply min-w-0;
+    }
 }
