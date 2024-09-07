@@ -12,6 +12,13 @@ import orjson
 from timetable import models
 
 ORDER: typing.Final[str] = "BG123456789"
+SMALL_WORDS = re.compile(
+    r"\b(a|an|and|at|but|by|de|en|for|if|in|of|on|or|the|to|via|vs?\.?)\b",
+    re.IGNORECASE,
+)
+INTERNAL_CAPS = re.compile(r"\S+[A-Z]+\S*")
+SPLIT_ON_WHITESPACE = re.compile(r"\s+")
+SPLIT_ON_HYPHENS = re.compile(r"-")
 
 
 def parse_weeks(weeks: str) -> list[int]:
@@ -48,6 +55,44 @@ def year_start_end_dates() -> tuple[datetime.datetime, datetime.datetime]:
     start = datetime.datetime(start_year, 9, 1)
     end = datetime.datetime(end_year, 5, 1)
     return (start, end)
+
+
+# Converted to python and modified from
+# https://github.com/HubSpot/humanize/blob/master/src/humanize.js#L439-L475
+def title_case(text: str):
+    def do_title_case(_text: str, hyphenated: bool = False, first_or_last: bool = True):
+        title_cased_array: list[str] = []
+        string_array = re.split(
+            SPLIT_ON_HYPHENS if hyphenated else SPLIT_ON_WHITESPACE, _text
+        )
+
+        for index, word in enumerate(string_array):
+            if "-" in word:
+                title_cased_array.append(
+                    do_title_case(
+                        word, True, index == 0 or index == len(string_array) - 1
+                    )
+                )
+                continue
+
+            if first_or_last and (index == 0 or index == len(string_array) - 1):
+                title_cased_array.append(
+                    word.capitalize() if not INTERNAL_CAPS.search(word) else word
+                )
+                continue
+
+            if INTERNAL_CAPS.search(word):
+                title_cased_array.append(word)
+            elif SMALL_WORDS.search(word):
+                title_cased_array.append(word.lower())
+            else:
+                title_cased_array.append(word.capitalize())
+
+        return (
+            "-".join(title_cased_array) if hyphenated else " ".join(title_cased_array)
+        )
+
+    return do_title_case(text)
 
 
 @dataclasses.dataclass
@@ -103,8 +148,10 @@ class EventDisplayData:
         else:
             summary_long = ""
 
-        summary_long = (name + (f" {summary_long}" if summary_long else "")).strip()
-        summary_short = name
+        summary_long = title_case(
+            (name + (f" {summary_long}" if summary_long else "")).strip()
+        )
+        summary_short = title_case(name)
 
         # LOCATIONS
 
