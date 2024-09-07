@@ -84,10 +84,9 @@
     }
 
     function updateEvents(events_data) {
-        ec.getEvents().forEach((item, _) => ec.removeEventById(item.id));
-        events = {};
-
         events_data.forEach(function (event, _) {
+            ec.removeEventById(event.identity)
+            
             let module_codes = new Set();
             event.parsed_name_data.forEach((data, _) =>
                 data.module_codes.forEach((code, _) => module_codes.add(code)),
@@ -99,7 +98,7 @@
                 start: convertDate(new Date(event.start)),
                 end: convertDate(new Date(event.end)),
                 title: {
-                    html: `<span class="font-bold">${event.display.summary}</span><br>📄 ${event.display.description}<br>📍 ${event.display.location}`,
+                    html: `<p class="font-bold">${event.display.summary}</p><p>📄 ${event.display.description}</p><p>📍 ${event.display.location}</p>`,
                 },
                 backgroundColor: colorHash.hex(module_codes.join("")),
             });
