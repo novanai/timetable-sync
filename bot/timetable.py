@@ -1,11 +1,30 @@
-import arc
-from timetable import api as api_
 import datetime
-import hikari
-from timetable import utils
 import itertools
 
+import arc
+import hikari
+
+from timetable import api as api_
+from timetable import models, utils
+
 plugin = arc.GatewayPlugin("timetable")
+
+
+async def search_courses(
+    data: arc.AutocompleteData[arc.GatewayClient, str],
+) -> dict[str, str]:
+    api = plugin.client.get_type_dependency(api_.API)
+    if data.focused_value:
+        categories = await api.get_category_results(
+            models.CategoryType.PROGRAMMES_OF_STUDY, data.focused_value, 10
+        )
+        if categories is None:
+            await utils.get_basic_category_results(api)
+            return {}
+
+        return {course.name: course.code for course in categories.items}
+
+    return {}
 
 
 @plugin.include
@@ -13,7 +32,10 @@ plugin = arc.GatewayPlugin("timetable")
 async def plugin_cmd(
     ctx: arc.GatewayContext,
     course: arc.Option[
-        str | None, arc.StrParams("The course to fetch a timetable for.")
+        str | None,
+        arc.StrParams(
+            "The course to fetch a timetable for.", autocomplete_with=search_courses
+        ),
     ] = None,
     api: api_.API = arc.inject(),
 ) -> None:

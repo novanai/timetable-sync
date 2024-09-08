@@ -209,10 +209,10 @@ class CategoryItem(ModelBase):
     - Modules: `"CA116[1] Computing Programming I"`
     """
     code: str
-    """The course/module code (including the semester number for modules).
+    """The course/module code.
     ### Examples:
     - Courses: `"COMSCI1"`
-    - Modules: `"CA116[1]"`
+    - Modules: `"CA116"`
     """
 
     @classmethod
