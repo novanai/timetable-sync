@@ -1,2 +1,4 @@
+parsedatetime==2.6
 hikari==2.0.0
 hikari-arc==1.3.4
+human-readable==1.3.4
