@@ -1,6 +1,5 @@
 import datetime
 import logging
-import time
 
 import blacksheep
 import orjson
@@ -27,36 +26,12 @@ docs.bind_app(app)
 
 @app.on_start
 async def start_session() -> None:
-    await get_or_fetch_and_cache_categories()
+    await utils.get_basic_category_results(api)
 
 
 @app.on_stop
 async def stop_session() -> None:
     await api.session.close()
-
-
-async def get_or_fetch_and_cache_categories() -> (
-    tuple[models.Category, models.Category]
-):
-    if not (
-        courses := await api.get_category_results(
-            models.CategoryType.PROGRAMMES_OF_STUDY
-        )
-    ):
-        start = time.time()
-        courses = await api.fetch_category_results(
-            models.CategoryType.PROGRAMMES_OF_STUDY, cache=True
-        )
-        logger.info(f"Cached Programmes of Study in {time.time()-start:.2f}s")
-
-    if not (modules := await api.get_category_results(models.CategoryType.MODULES)):
-        start = time.time()
-        modules = await api.fetch_category_results(
-            models.CategoryType.MODULES, cache=True
-        )
-        logger.info(f"Cached Modules in {time.time()-start:.2f}s")
-
-    return courses, modules
 
 
 @docs.ignore()
@@ -70,6 +45,7 @@ async def healthcheck() -> blacksheep.Response:
 async def all_category_values(
     category_type: str,
 ) -> blacksheep.Response:
+    # TODO: set category_type to a Final and move this into error handler
     if category_type not in ("courses", "modules"):
         return blacksheep.Response(
             status=400,
@@ -79,33 +55,16 @@ async def all_category_values(
             ),
         )
 
-    courses, modules = await get_or_fetch_and_cache_categories()
-
-    data: list[str | dict[str, str]]
-
-    if category_type == "courses":
-        data = list(set(c.name for c in courses.items))
-        data.sort(key=str)
-    else:
-        assert category_type == "modules"
-        codes: list[str] = []
-        data = []
-
-        for m in modules.items:
-            if m.code not in codes:
-                data.append(
-                    {
-                        "name": m.name,
-                        "value": m.code,
-                    }
-                )
-                codes.append(m.code)
+    # TODO: update frontend to support this change
+    categories = await utils.get_basic_category_results(api)
 
     return blacksheep.Response(
         status=200,
         content=blacksheep.Content(
             content_type=b"application/json",
-            data=orjson.dumps(data),
+            data=orjson.dumps(
+                categories.courses if category_type == "courses" else categories.modules
+            ),
         ),
     )
 
