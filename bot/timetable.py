@@ -3,16 +3,19 @@ from timetable import api as api_
 import datetime
 import hikari
 from timetable import utils
-import collections
+import itertools
 
 plugin = arc.GatewayPlugin("timetable")
+
 
 @plugin.include
 @arc.slash_command("timetable", "description")
 async def plugin_cmd(
     ctx: arc.GatewayContext,
-    course: arc.Option[str | None, arc.StrParams("The course to fetch a timetable for.")] = None,
-    api: api_.API = arc.inject()
+    course: arc.Option[
+        str | None, arc.StrParams("The course to fetch a timetable for.")
+    ] = None,
+    api: api_.API = arc.inject(),
 ) -> None:
     today = datetime.datetime.now(datetime.timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
@@ -24,29 +27,31 @@ async def plugin_cmd(
     else:
         events = []
 
-    await ctx.respond(
-        embed=format_events(events)
-    )
-    
+    await ctx.respond(embed=format_events(events))
+
+
 def format_events(events: list[utils.EventDisplayData]) -> hikari.Embed:
     embed = hikari.Embed()
 
-    grouped: dict[datetime.date, list[utils.EventDisplayData]] = collections.defaultdict(list)
+    if not events:
+        embed.description = "No events for this time period."
+        return embed
 
-    for event in events:
-        grouped[event.original_event.start.date()].append(event)
-
-    for date in sorted(grouped):
+    for date, events_ in itertools.groupby(
+        sorted(events, key=lambda e: e.original_event.start),
+        key=lambda e: e.original_event.start.date(),
+    ):
         formatted_events = [
             (
-                f"{e.summary}\n🕑 <t:{int(e.original_event.start.timestamp())}:t>-<t:{int(e.original_event.end.timestamp())}:t>"
-                f" 📍 {e.location}"
+                f"{e.summary}\n🕑 <t:{int(e.original_event.start.timestamp())}:t>"
+                f"-<t:{int(e.original_event.end.timestamp())}:t> 📍 {e.location}"
             )
-            for e in sorted(grouped[date], key=lambda e: e.original_event.start)
+            for e in sorted(events_, key=lambda e: e.original_event.start)
         ]
-        embed.add_field(date.strftime("%a %d %b"), "\n\n".join(formatted_events))
+        embed.add_field(date.strftime("%A %d %b"), "\n\n".join(formatted_events))
 
     return embed
+
 
 @arc.loader
 def loader(client: arc.GatewayClient) -> None:
