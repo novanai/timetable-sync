@@ -49,6 +49,16 @@ services:
       timeout: 10s
       retries: 3
 
+  bot:
+    container_name: bot
+    build:
+      context: .
+      dockerfile: ./bot/Dockerfile
+    restart: unless-stopped
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - REDIS_ADDRESS=${REDIS_ADDRESS}
+
   redis:
     container_name: redis
     image: redis:7.4.0-alpine3.20
