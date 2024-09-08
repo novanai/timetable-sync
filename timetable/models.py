@@ -220,10 +220,8 @@ class CategoryItem(ModelBase):
         cat_type = CategoryType(payload["CategoryTypeIdentity"])
         name: str = payload["Name"]
 
-        if cat_type is CategoryType.MODULES:
-            code = name.split(" ")[0]
-        else:
-            code = name
+        code = name.split(" ")[0]
+        code = re.sub(utils.SEMESTER_CODE, "", code, 1)
 
         return cls(
             description=payload["Description"].strip() or None,
@@ -231,7 +229,7 @@ class CategoryItem(ModelBase):
             parent_categories=payload["ParentCategoryIdentities"],
             identity=payload["Identity"],
             name=name,
-            code=code,
+            code=code.strip(),
         )
 
 
