@@ -44,7 +44,7 @@
         slotMaxTime: "19:00:00",
         editable: false,
         firstDay: 1, // Monday
-        nowIndicator: true,
+        nowIndicator: false,
         slotDuration: "01:00:00",
         slotHeight: 96,
         eventTextColor: "#000",
