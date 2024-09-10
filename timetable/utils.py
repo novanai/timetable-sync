@@ -17,6 +17,7 @@ from timetable.types import is_str_list
 if typing.TYPE_CHECKING:
     from timetable import api as api_
 
+
 logger = logging.getLogger(__name__)
 
 ORDER: typing.Final[str] = "BG123456789"
