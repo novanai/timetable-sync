@@ -24,7 +24,7 @@
     ];
 </script>
 
-<head>
+<!-- <head>
     <script>
         function dispatchThemeUpdate(theme) {
             window.dispatchEvent(
@@ -32,7 +32,7 @@
             );
         }
     </script>
-</head>
+</head> -->
 
 <div class="min-h-screen">
     <div class="navbar bg-base-100">
@@ -126,8 +126,8 @@
                                 class="theme-controller btn btn-sm btn-block btn-ghost justify-start"
                                 aria-label={name}
                                 data-set-theme={value}
-                                onclick="dispatchThemeUpdate('{value}')"
                             />
+                            <!-- onclick="dispatchThemeUpdate('{value}')" -->
                         </li>
                     {/each}
                 </ul>

@@ -2,15 +2,6 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
-.ec-time-grid .ec-content .ec-time,
-.ec-time-grid .ec-content .ec-line {
-    height: 96px !important;
-}
-
-.ec-time-grid .ec-content .ec-event-time {
-    display: none;
-}
-
 /* styling for selector */
 :root {
     --sv-min-height: 40px;
@@ -47,6 +38,14 @@
     --sv-create-kbd-bg: var(--sv-disabled-bg);
     --sv-create-disabled-bg: oklch(var(--er));
     --sv-loader-border: 2px solid var(--sv-border-color);
+}
+
+.fc-event {
+    box-shadow: none !important;
+}
+
+.fc-event:hover {
+    cursor: pointer;
 }
 
 @layer components {
