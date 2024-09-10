@@ -11,8 +11,11 @@ import typing
 import icalendar
 import orjson
 
-from timetable import api as api_
+
 from timetable import models
+
+if typing.TYPE_CHECKING:
+    from timetable import api as api_
 
 logger = logging.getLogger(__name__)
 
