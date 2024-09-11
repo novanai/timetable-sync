@@ -4,7 +4,7 @@ export default {
         "./src/**/*.{html,js,svelte,ts}",
     ],
     daisyui: {
-        themes: ["winter", "dark", "night"],
+        themes: ["winter", "night"],
     },
     plugins: [require('daisyui')],
 };

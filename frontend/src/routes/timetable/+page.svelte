@@ -105,21 +105,10 @@
     }
 
     function updateEvents(events_data) {
-        // calendar.getEvents().forEach((event, _) => event.remove());
-        // events = {};
+        calendar.getEvents().forEach((event, _) => event.remove());
+        events = {};
 
         events_data.forEach(function (event, _) {
-            // TODO: fix events not being removed for categories that were removed
-            let current = calendar.getEventById(event.identity);
-            if (current != null) {
-                current.remove();
-            }
-            // let module_codes = new Set();
-            // event.parsed_name_data.forEach((data, _) =>
-            //     data.module_codes.forEach((code, _) => module_codes.add(code)),
-            // );
-            // module_codes = Array.from(module_codes);
-
             calendar.addEvent({
                 id: event.identity,
                 // groupId
@@ -160,19 +149,6 @@
             (event.weeks != null ? `🗓️ Weeks ${displayList(event.weeks)}` : "");
         document.getElementById("info_modal").showModal();
     }
-
-    // window.addEventListener("theme-update", function (e) {
-    //     let theme = e.detail.value;
-    //     if (theme == "winter") {
-    //         document
-    //             .getElementById("calendar-container")
-    //             .classList.remove("ec-dark");
-    //     } else {
-    //         document
-    //             .getElementById("calendar-container")
-    //             .classList.add("ec-dark");
-    //     }
-    // });
 </script>
 
 <div role="alert" class="alert">
@@ -222,13 +198,6 @@
 </div>
 
 <br />
-
-<!-- <div
-    id="calendar-container"
-    class={localStorage.getItem("theme") != "winter" ? "ec-dark" : ""}
->
-     
-</div> -->
 
 <div bind:this={calendarEl}></div>
 

@@ -2,8 +2,9 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
-/* styling for selector */
+
 :root {
+    /* selector styling */
     --sv-min-height: 40px;
     --sv-bg: oklch(var(--b1));
     --sv-disabled-bg: oklch(var(--er));
@@ -38,6 +39,20 @@
     --sv-create-kbd-bg: var(--sv-disabled-bg);
     --sv-create-disabled-bg: oklch(var(--er));
     --sv-loader-border: 2px solid var(--sv-border-color);
+
+    /* calendar styling */
+    --fc-list-event-hover-bg-color: var(--fc-neutral-bg-color) !important;
+    --fc-button-text-color: unset;
+    --fc-button-bg-color: unset;
+    --fc-button-border-color: unset;
+    --fc-button-hover-bg-color: unset;
+    --fc-button-hover-border-color: unset;
+    --fc-button-active-bg-color: unset;
+    --fc-button-active-border-color: unset;
+}
+
+.fc .fc-list-sticky .fc-list-day > * {
+    background: var(--fc-neutral-bg-color) !important;
 }
 
 .fc-event {
