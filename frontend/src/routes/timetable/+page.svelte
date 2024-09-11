@@ -1,10 +1,13 @@
 <script>
     export let data;
 
+    import { onMount } from "svelte";
+    import { Calendar } from "@fullcalendar/core";
+    import timeGridPlugin from "@fullcalendar/timegrid";
+    import listPlugin from "@fullcalendar/list";
+    import momentTimezonePlugin from "@fullcalendar/moment-timezone";
+    import { toMoment } from "@fullcalendar/moment";
     import Svelecte from "svelecte";
-    import Calendar from "@event-calendar/core";
-    import TimeGrid from "@event-calendar/time-grid";
-    import ListWeek from "@event-calendar/list";
     import ColorHash from "color-hash";
 
     var colorHash = new ColorHash({ lightness: 0.7, saturation: 0.5 });
@@ -26,31 +29,55 @@
             max: 20,
         },
     };
+    // TODO: store events as {module/course identity: {event identity: event}}
     let events = {};
 
-    let ec;
-    let plugins = [TimeGrid, ListWeek];
-    let options = {
-        // Default to day view on smaller devices
-        view: window.innerWidth > 768 ? "timeGridWeek" : "timeGridDay",
-        headerToolbar: {
-            start: "prev,next today",
-            center: "title",
-            end: "timeGridWeek,timeGridDay,listWeek",
-        },
-        allDaySlot: false,
-        hiddenDays: [6, 0], // Saturday, Sunday
-        slotMinTime: "08:00:00",
-        slotMaxTime: "19:00:00",
-        editable: false,
-        firstDay: 1, // Monday
-        nowIndicator: false,
-        slotDuration: "01:00:00",
-        slotHeight: 96,
-        eventTextColor: "#000",
-        eventClick: updateAndDisplayModal,
-        datesSet: fetchEvents,
-    };
+    let calendarEl;
+    let calendar;
+
+    function initCalendar() {
+        calendar = new Calendar(calendarEl, {
+            plugins: [timeGridPlugin, listPlugin, momentTimezonePlugin],
+            initialView:
+                window.innerWidth > 768 ? "timeGridWeek" : "timeGridDay",
+            headerToolbar: {
+                left: "prev,next today",
+                center: "title",
+                right: "timeGridWeek,timeGridDay,listWeek",
+            },
+            locale: "en-GB",
+            timeZone: "Europe/Dublin",
+            slotLabelFormat: {
+                hour: "numeric",
+                minute: "numeric",
+            },
+            allDaySlot: false,
+            weekends: false,
+            slotMinTime: "08:00:00",
+            slotMaxTime: "19:00:00",
+            editable: false,
+            firstDay: 1, // Monday
+            nowIndicator: true,
+            slotDuration: "01:00:00",
+            expandRows: true,
+            eventContent: function (info) {
+                return { html: info.event.title };
+            },
+            eventTextColor: "#000",
+            eventBorderColor: "#0000",
+            eventClick: updateAndDisplayModal,
+            datesSet: fetchEvents,
+        });
+        calendar.render();
+    }
+
+    onMount(async () => {
+        initCalendar();
+
+        return () => {
+            calendar && calendar.destroy();
+        };
+    });
 
     async function fetchEvents(info = null) {
         let events_data;
@@ -60,7 +87,7 @@
         ) {
             events_data = [];
         } else {
-            let view = ec.getView();
+            let view = calendar.view;
             let params = new URLSearchParams();
 
             params.set("courses", timetable_data.courses.selected);
@@ -77,30 +104,20 @@
         updateEvents(events_data);
     }
 
-    function convertDate(date) {
-        return new Date(
-            date.toLocaleString("en-US", { timeZone: "Europe/Dublin" }),
-        );
-    }
-
     function updateEvents(events_data) {
-        events_data.forEach(function (event, _) {
-            ec.removeEventById(event.identity)
-            
-            let module_codes = new Set();
-            event.parsed_name_data.forEach((data, _) =>
-                data.module_codes.forEach((code, _) => module_codes.add(code)),
-            );
-            module_codes = Array.from(module_codes);
+        calendar.getEvents().forEach((event, _) => event.remove());
+        events = {};
 
-            ec.addEvent({
+        events_data.forEach(function (event, _) {
+            calendar.addEvent({
                 id: event.identity,
-                start: convertDate(new Date(event.start)),
-                end: convertDate(new Date(event.end)),
-                title: {
-                    html: `<p class="font-bold">${event.display.summary}</p><p>📄 ${event.display.description}</p><p>📍 ${event.display.location}</p>`,
-                },
-                backgroundColor: colorHash.hex(module_codes.join("")),
+                // groupId
+                start: event.start,
+                end: event.end,
+                title: `<p class="font-bold">${event.display.summary}</p><p>📄 ${event.display.description}</p><p>📍 ${event.display.location}</p>`,
+                backgroundColor: colorHash.hex(
+                    event.display.summary.replaceAll(" ", ""),
+                ),
             });
             events[event.identity] = event;
         });
@@ -116,17 +133,11 @@
     function updateAndDisplayModal(info) {
         let event = events[info.event.id];
         modal_title = event.display.summary;
-        let start = convertDate(new Date(event.start)).toLocaleTimeString(
-            "en-GB",
-            { hour: "2-digit", minute: "2-digit" },
-        );
-        let end = convertDate(new Date(event.end)).toLocaleTimeString("en-GB", {
-            hour: "2-digit",
-            minute: "2-digit",
-        });
-        let date = convertDate(new Date(event.start)).toLocaleDateString(
-            "en-GB",
-            { weekday: "long", day: "numeric", month: "long", year: "numeric" },
+
+        let start = toMoment(info.event.start, calendar).format("HH:mm");
+        let end = toMoment(info.event.end, calendar).format("HH:mm");
+        let date = toMoment(info.event.start, calendar).format(
+            "dddd, D MMMM YYYY",
         );
         modal_content =
             `<p>🕑 ${start}-${end} • ${date}` +
@@ -138,19 +149,6 @@
             (event.weeks != null ? `🗓️ Weeks ${displayList(event.weeks)}` : "");
         document.getElementById("info_modal").showModal();
     }
-
-    window.addEventListener("theme-update", function (e) {
-        let theme = e.detail.value;
-        if (theme == "winter") {
-            document
-                .getElementById("calendar-container")
-                .classList.remove("ec-dark");
-        } else {
-            document
-                .getElementById("calendar-container")
-                .classList.add("ec-dark");
-        }
-    });
 </script>
 
 <div role="alert" class="alert">
@@ -201,12 +199,7 @@
 
 <br />
 
-<div
-    id="calendar-container"
-    class={localStorage.getItem("theme") != "winter" ? "ec-dark" : ""}
->
-    <Calendar bind:this={ec} {plugins} {options} />
-</div>
+<div bind:this={calendarEl}></div>
 
 <dialog id="info_modal" class="modal">
     <div class="modal-box">

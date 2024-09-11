@@ -13,8 +13,7 @@
 
     let themes = [
         { name: "Light", value: "winter" },
-        { name: "Dark", value: "dark" },
-        { name: "Night", value: "night" },
+        { name: "Dark", value: "night" },
     ];
     let pages = [
         { name: "Home", value: "/" },
@@ -23,16 +22,6 @@
         { name: "API Documentation", value: "/docs" },
     ];
 </script>
-
-<head>
-    <script>
-        function dispatchThemeUpdate(theme) {
-            window.dispatchEvent(
-                new CustomEvent("theme-update", { detail: { value: theme } }),
-            );
-        }
-    </script>
-</head>
 
 <div class="min-h-screen">
     <div class="navbar bg-base-100">
@@ -126,7 +115,6 @@
                                 class="theme-controller btn btn-sm btn-block btn-ghost justify-start"
                                 aria-label={name}
                                 data-set-theme={value}
-                                onclick="dispatchThemeUpdate('{value}')"
                             />
                         </li>
                     {/each}
