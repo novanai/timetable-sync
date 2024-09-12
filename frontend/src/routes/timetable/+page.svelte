@@ -38,8 +38,7 @@
     function initCalendar() {
         calendar = new Calendar(calendarEl, {
             plugins: [timeGridPlugin, listPlugin, momentTimezonePlugin],
-            initialView:
-                window.innerWidth > 768 ? "timeGridWeek" : "timeGridDay",
+            initialView: getDefaultView(),
             headerToolbar: {
                 left: "prev,next today",
                 center: "title",
@@ -60,6 +59,10 @@
             nowIndicator: true,
             slotDuration: "01:00:00",
             expandRows: true,
+            height: calcHeight(getDefaultView()),
+            windowResize: function (info) {
+                calendar.setOption("height", calcHeight(info.view.type));
+            },
             eventContent: function (info) {
                 return { html: info.event.title };
             },
@@ -78,6 +81,23 @@
             calendar && calendar.destroy();
         };
     });
+
+    function getDefaultView() {
+        return window.innerWidth > 768 ? "timeGridWeek" : "timeGridDay";
+    }
+
+    function calcHeight(viewType) {
+        if (viewType == "timeGridDay") {
+            return 1050;
+        }
+        let height = 2850 - (225 * window.innerWidth) / 128;
+        if (height > 1500) {
+            height = 1500;
+        } else if (height < 1050) {
+            height = 1050;
+        }
+        return height;
+    }
 
     async function fetchEvents(info = null) {
         let events_data;

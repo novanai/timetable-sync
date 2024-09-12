@@ -57,6 +57,7 @@
 
 .fc-event {
     box-shadow: none !important;
+    overflow: hidden;
 }
 
 .fc-event:hover {
