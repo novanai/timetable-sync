@@ -227,7 +227,7 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
         event.add("UID", item.original_event.identity)
         event.add("LAST-MODIFIED", item.original_event.last_modified)
         event.add("DTSTART", item.original_event.start)
-        event.add("DTEND", item.original_event.end)
+        event.add("DTEND", item.original_event.end - datetime.timedelta(seconds=1))
         event.add("SUMMARY", item.summary_long)
         event.add("DESCRIPTION", item.description)
         event.add("LOCATION", item.location_long)
