@@ -107,7 +107,7 @@ END:VCALENDAR
                                         building="Q",
                                         floor="G",
                                         room="15",
-                                        error=False,
+                                        original=None,
                                     ),
                                 ],
                                 description="Lecture",

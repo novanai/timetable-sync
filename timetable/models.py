@@ -458,8 +458,8 @@ class Location(ModelBase):
     """
     room: str
     """The room code. Not guaranteed to be just a number."""
-    error: bool = False
-    """`True` if this location was not parsed correctly, otherwise `False`"""
+    original: str | None = None
+    """The original location code. If `None`, the location was parsed correctly."""
 
     @classmethod
     def from_payload(cls, payload: dict[str, typing.Any]) -> typing.Self:
@@ -496,10 +496,7 @@ class Location(ModelBase):
 
         logger.warning(f"Failed to parse location: '{location}'")
 
-        # fallback
-        campus, loc = location.split(".")
-
-        return [cls(campus=campus, building="", floor="", room=loc, error=True)]
+        return [cls(campus="", building="", floor="", room="", original=location)]
 
     def __str__(self) -> str:
         return f"{self.campus}.{self.building}{self.floor}{self.room}"
