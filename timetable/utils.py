@@ -8,6 +8,7 @@ import typing
 
 import icalendar
 import orjson
+from timetable.types import is_str_list
 
 from timetable import models
 
@@ -152,30 +153,44 @@ class EventDisplayData:
             (name + (f" {summary_long}" if summary_long else "")).strip()
         )
         summary_short = title_case(name)
+        if event.group_name:
+            summary_short = f"{summary_short} (Group {event.group_name})".strip()
 
         # LOCATIONS
 
         if event.locations:
             # dict[(campus, building)] = [locations]
-            locations: dict[tuple[str, str], list[models.Location]] = (
+            locations: dict[tuple[str, str] | None, list[models.Location]] = (
                 collections.defaultdict(list)
             )
 
             for loc in event.locations:
-                locations[(loc.campus, loc.building)].append(loc)
+                if loc.original is not None:
+                    locations[None].append(loc)
+                else:
+                    locations[(loc.campus, loc.building)].append(loc)
 
             locations_long: list[str] = []
             locations_short: list[str] = []
-            for (campus, building), locs_ in locations.items():
+            for main, locs in locations.items():
+                if main is None:
+                    locs_ = [loc.original for loc in locs]
+                    assert is_str_list(locs_)
+                    loc_string = ", ".join(locs_)
+                    locations_long.append(loc_string)
+                    locations_short.append(loc_string)
+                    continue
+
+                campus, building = main
                 building = models.BUILDINGS[campus][building]
                 campus = models.CAMPUSES[campus]
-                locs_ = sorted(locs_, key=lambda r: r.room)
-                locs_ = sorted(locs_, key=lambda r: ORDER.index(r.floor))
+                locs = sorted(locs, key=lambda r: r.room)
+                locs = sorted(locs, key=lambda r: ORDER.index(r.floor))
                 locations_long.append(
-                    f"{', '.join((f"{loc.building}{loc.floor}{loc.room}" for loc in locs_))} ({building}, {campus})"
+                    f"{', '.join((f"{loc.building}{loc.floor}{loc.room}" for loc in locs))} ({building}, {campus})"
                 )
                 locations_short.append(
-                    f"{', '.join((f"{loc.building}{loc.floor}{loc.room}" for loc in locs_))}"
+                    f"{', '.join((f"{loc.building}{loc.floor}{loc.room}" for loc in locs))}"
                 )
 
             location_long = ", ".join(locations_long)
@@ -229,7 +244,7 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
         event.add("DTSTART", item.original_event.start)
         event.add("DTEND", item.original_event.end - datetime.timedelta(seconds=1))
         event.add("SUMMARY", item.summary_long)
-        event.add("DESCRIPTION", item.description)
+        event.add("DESCRIPTION", f"Details: {item.description}\nStaff: {item.original_event.staff_member}")
         event.add("LOCATION", item.location_long)
         event.add("CLASS", "PUBLIC")
         calendar.add_component(event)
