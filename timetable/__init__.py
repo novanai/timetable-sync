@@ -6,4 +6,4 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-__version__ = "2.2.1"
+__version__ = "2.3.0"
