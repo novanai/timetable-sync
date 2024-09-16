@@ -136,6 +136,7 @@
                 end: event.end,
                 title: `<p class="font-bold">${event.display.summary}</p><p>📄 ${event.display.description}</p><p>📍 ${event.display.location}</p>`,
                 backgroundColor: colorHash.hex(
+                    // TODO: as summary now sometimes includes group, need to change this to use module name / name
                     event.display.summary.replaceAll(" ", ""),
                 ),
             });

@@ -64,6 +64,12 @@
     cursor: pointer;
 }
 
+@media (max-width: 640px) { 
+    .fc-toolbar-title {
+        display: none;
+    } 
+}
+
 @layer components {
     .tab-content {
         @apply min-w-0;
