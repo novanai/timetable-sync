@@ -69,9 +69,3 @@
         display: none;
     } 
 }
-
-@layer components {
-    .tab-content {
-        @apply min-w-0;
-    }
-}
