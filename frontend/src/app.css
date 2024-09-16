@@ -51,8 +51,12 @@
     --fc-button-active-border-color: unset;
 }
 
-.fc .fc-list-sticky .fc-list-day > * {
-    background: var(--fc-neutral-bg-color) !important;
+html[data-theme="winter"] .fc .fc-list-sticky .fc-list-day > * {
+    background: #d1d1d1 !important;
+}
+
+html[data-theme="night"] .fc .fc-list-sticky .fc-list-day > * {
+    background: #2e2e2e !important;
 }
 
 .fc-event {
@@ -67,5 +71,11 @@
 @layer components {
     .tab-content {
         @apply min-w-0;
+    }
+}
+
+@media (max-width: 640px) { 
+    .fc-toolbar-title {
+        display: none;
     }
 }

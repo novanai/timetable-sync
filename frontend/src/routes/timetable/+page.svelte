@@ -20,7 +20,7 @@
             name: "Courses",
             selected: [],
             data: data.courses,
-            max: 3,
+            max: 8,
         },
         modules: {
             name: "Modules",
@@ -136,7 +136,10 @@
                 end: event.end,
                 title: `<p class="font-bold">${event.display.summary}</p><p>📄 ${event.display.description}</p><p>📍 ${event.display.location}</p>`,
                 backgroundColor: colorHash.hex(
-                    event.display.summary.replaceAll(" ", ""),
+                    (event.module_name
+                        ? event.module_name
+                        : event.name
+                    ).replaceAll(" ", ""),
                 ),
             });
             events[event.identity] = event;
