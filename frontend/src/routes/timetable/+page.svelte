@@ -20,7 +20,7 @@
             name: "Courses",
             selected: [],
             data: data.courses,
-            max: 3,
+            max: 8,
         },
         modules: {
             name: "Modules",
