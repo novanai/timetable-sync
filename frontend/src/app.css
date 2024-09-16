@@ -68,6 +68,12 @@ html[data-theme="night"] .fc .fc-list-sticky .fc-list-day > * {
     cursor: pointer;
 }
 
+@layer components {
+    .tab-content {
+        @apply min-w-0;
+    }
+}
+
 @media (max-width: 640px) { 
     .fc-toolbar-title {
         display: none;
