@@ -51,6 +51,17 @@ jobs:
           flavor: |
             latest=true
 
+      - name: Extract bot metadata for Docker
+        id: meta-bot
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-bot
+          tags: |
+            type=semver,pattern={{version}}
+            type=sha
+          flavor: |
+            latest=true
+
       - name: Build and push frontend
         uses: docker/build-push-action@v5
         with:
@@ -68,3 +79,12 @@ jobs:
           push: true
           tags: ${{ steps.meta-backend.outputs.tags }}
           labels: ${{ steps.meta-backend.outputs.labels }}
+
+      - name: Build and push bot
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./bot/Dockerfile
+          push: true
+          tags: ${{ steps.meta-bot.outputs.tags }}
+          labels: ${{ steps.meta-bot.outputs.labels }}
