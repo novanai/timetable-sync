@@ -115,6 +115,12 @@ async def plugin_cmd(
             "The end time of events to fetch.", autocomplete_with=datetime_autocomplete
         ),
     ] = None,
+    range_: arc.Option[
+        str | None,
+        arc.StrParams(
+            "The time range of events to fetch (default 'day').", name="range", choices=["day", "week"],
+        ),
+    ] = None,
     api: api_.API = arc.inject(),
 ) -> None:
     if start:
@@ -138,8 +144,10 @@ async def plugin_cmd(
         except ValueError:
             date = str_to_datetime(end, include_day=True)
             end_date = date[1] if date else None
-    else:
+    elif range_ and range_ == "week":
         end_date = start_date + datetime.timedelta(weeks=1)
+    else:
+        end_date = start_date + datetime.timedelta(days=1)
 
     if end_date is None:
         await ctx.respond("Invalid end time.", flags=hikari.MessageFlag.EPHEMERAL)
