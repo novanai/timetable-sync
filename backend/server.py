@@ -97,7 +97,7 @@ async def timetable_api(
             codes.append(course.strip())
 
         events.extend(await generate_courses_timetables(codes, start_date, end_date))
-    elif modules:
+    if modules:
         codes = [m.strip() for m in modules.split(",")]
 
         events.extend(await generate_modules_timetables(codes, start_date, end_date))

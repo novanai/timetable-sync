@@ -11,6 +11,8 @@ from rapidfuzz import utils as fuzz_utils
 from timetable import cache as cache_
 from timetable import models, utils
 
+from timetable import __version__
+
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://scientia-eu-v4-api-d1-03.azurewebsites.net/api/Public"
@@ -64,19 +66,20 @@ class API:
                 headers={
                     "Authorization": "Anonymous",
                     "Content-type": "application/json",
+                    "User-Agent": f"TimetableSync/{__version__} (https://timetable.redbrick.dcu.ie)"
                 },
                 json=json_data,
             ) as res:
                 if not res.ok:
+                    if retries == 3:
+                        logger.error(
+                            f"API Error: {res.status} {res.content_type} {(await res.read()).decode()}"
+                        )
+                        res.raise_for_status()
+
                     retries += 1
                     await asyncio.sleep(5)
                     continue
-
-                if retries == 3:
-                    logger.error(
-                        f"API Error: {res.status} {res.content_type} {(await res.read()).decode()}"
-                    )
-                    res.raise_for_status()
 
                 data = await res.json(loads=orjson.loads)
                 return data

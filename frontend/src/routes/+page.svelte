@@ -1,4 +1,4 @@
-<div class="mx-4 md:mx-16 lg:mx-32">
+<div class="mx-4 md:mx-16 lg:mx-32 text-ellipsis overflow-hidden">
     <h1 class="text-primary text-2xl font-semibold mb-2">
         Add to Google Calendar
     </h1>
