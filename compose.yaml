@@ -58,6 +58,11 @@ services:
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
       - REDIS_ADDRESS=${REDIS_ADDRESS}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
 
   redis:
     container_name: redis
@@ -65,3 +70,14 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
+
+  postgres:
+    container_name: postgres
+    image: postgres:16.4
+    restart: unless-stopped
+    volumes:
+      - ./db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}

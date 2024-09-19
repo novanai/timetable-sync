@@ -9,12 +9,10 @@ import parsedatetime
 from timetable import api as api_
 from timetable import models, utils
 
+from bot import autocomplete
+
 plugin = arc.GatewayPlugin("timetable")
 
-CATEGORY_TYPES: dict[str, models.CategoryType] = {
-    "course": models.CategoryType.PROGRAMMES_OF_STUDY,
-    "module": models.CategoryType.MODULES,
-}
 
 PARSE_RESULT: dict[int, str] = {
     0: "none",
@@ -54,23 +52,6 @@ def str_to_datetime(
     return name, time
 
 
-async def search_categories(
-    data: arc.AutocompleteData[arc.GatewayClient, str],
-) -> dict[str, str]:
-    api = plugin.client.get_type_dependency(api_.API)
-    if data.focused_option and data.focused_value:
-        categories = await api.get_category_results(
-            CATEGORY_TYPES[data.focused_option.name], data.focused_value, 10
-        )
-        if categories is None:
-            await utils.get_basic_category_results(api)
-            return {}
-
-        return {item.name: item.code for item in categories.items}
-
-    return {}
-
-
 async def datetime_autocomplete(
     data: arc.AutocompleteData[arc.GatewayClient, str],
 ) -> dict[str, str]:
@@ -93,13 +74,13 @@ async def plugin_cmd(
     course: arc.Option[
         str | None,
         arc.StrParams(
-            "The course to fetch a timetable for.", autocomplete_with=search_categories
+            "The course to fetch a timetable for.", autocomplete_with=autocomplete.search_categories
         ),
     ] = None,
     module: arc.Option[
         str | None,
         arc.StrParams(
-            "The module to fetch a timetable for.", autocomplete_with=search_categories
+            "The module to fetch a timetable for.", autocomplete_with=autocomplete.search_categories
         ),
     ] = None,
     start: arc.Option[
