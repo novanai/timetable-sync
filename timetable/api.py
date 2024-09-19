@@ -6,6 +6,7 @@ import typing
 import aiohttp
 import orjson
 from rapidfuzz import fuzz
+from rapidfuzz import utils as fuzz_utils
 
 from timetable import cache as cache_
 from timetable import models, utils
@@ -194,7 +195,7 @@ class API:
         if query:
             return models.Category(
                 self._filter_categories_for(results, query, count),
-                data["Count"],
+                count if count is not None else len(results.items),
             )
 
         return results
@@ -227,15 +228,17 @@ class API:
         ratios: list[tuple[models.CategoryItem, float]] = []
 
         for item in results.items:
-            item_ratios: list[float] = [
-                fuzz.partial_ratio(query, item.name),
+            item_ratios = [
+                fuzz.partial_ratio(
+                    query, item.name, processor=fuzz_utils.default_process
+                ),
+                fuzz.partial_ratio(
+                    query, item.code, processor=fuzz_utils.default_process
+                ),
             ]
-            if item.description:
-                item_ratios.append(
-                    fuzz.partial_ratio(query, item.description),
-                )
             ratios.append((item, max(item_ratios)))
 
+        ratios = filter(lambda r: r[1] > 80, ratios)
         ratios = sorted(ratios, key=lambda r: r[1], reverse=True)
         return [r[0] for r in ratios[:count]]
 

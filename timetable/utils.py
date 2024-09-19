@@ -3,16 +3,25 @@ from __future__ import annotations
 import collections
 import dataclasses
 import datetime
+import logging
 import re
+import time
 import typing
 
 import icalendar
 import orjson
 from timetable.types import is_str_list
 
+
 from timetable import models
 
+if typing.TYPE_CHECKING:
+    from timetable import api as api_
+
+logger = logging.getLogger(__name__)
+
 ORDER: typing.Final[str] = "BG123456789"
+SEMESTER_CODE = re.compile(r"[\[\(][0-2F,]+[\]\)]")
 SMALL_WORDS = re.compile(
     r"\b(a|an|and|at|but|by|de|en|for|if|in|of|on|or|the|to|via|vs?\.?)\b",
     re.IGNORECASE,
@@ -56,6 +65,43 @@ def year_start_end_dates() -> tuple[datetime.datetime, datetime.datetime]:
     start = datetime.datetime(start_year, 9, 1)
     end = datetime.datetime(end_year, 5, 1)
     return (start, end)
+
+
+@dataclasses.dataclass
+class Category:
+    name: str
+    code: str
+
+
+@dataclasses.dataclass
+class Categories:
+    courses: list[Category]
+    modules: list[Category]
+
+
+async def get_basic_category_results(api: api_.API) -> Categories:
+    if not (
+        courses := await api.get_category_results(
+            models.CategoryType.PROGRAMMES_OF_STUDY
+        )
+    ):
+        start = time.time()
+        courses = await api.fetch_category_results(
+            models.CategoryType.PROGRAMMES_OF_STUDY, cache=True
+        )
+        logger.info(f"Cached Programmes of Study in {time.time()-start:.2f}s")
+
+    if not (modules := await api.get_category_results(models.CategoryType.MODULES)):
+        start = time.time()
+        modules = await api.fetch_category_results(
+            models.CategoryType.MODULES, cache=True
+        )
+        logger.info(f"Cached Modules in {time.time()-start:.2f}s")
+
+    return Categories(
+        courses=[Category(name=c.name, code=c.code) for c in courses.items],
+        modules=[Category(name=m.name, code=m.code) for m in modules.items],
+    )
 
 
 # Converted to python and modified from
@@ -128,7 +174,7 @@ class EventDisplayData:
         # SUMMARY
 
         name = (
-            re.sub(r"[\[\(][0-2F,]+[\]\)]", "", n)
+            re.sub(SEMESTER_CODE, "", n)
             if (n := event.module_name)
             else event.name
         )

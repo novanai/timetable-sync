@@ -69,7 +69,9 @@
                 </div>
                 <Svelecte
                     class="mt-2"
-                    options={option.data}
+                    options={option.data.map((item) => {
+                        return { value: item.code, text: item.name };
+                    })}
                     multiple
                     max={option.max}
                     clearable
