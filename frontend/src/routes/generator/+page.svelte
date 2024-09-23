@@ -17,6 +17,12 @@
             data: data.modules,
             max: 20,
         },
+        locations: {
+            name: "Locations",
+            selected: [],
+            data: data.locations,
+            max: 8
+        },
     };
 </script>
 
