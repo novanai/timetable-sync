@@ -8,10 +8,8 @@ import orjson
 from rapidfuzz import fuzz
 from rapidfuzz import utils as fuzz_utils
 
+from timetable import __version__, models, utils
 from timetable import cache as cache_
-from timetable import models, utils
-
-from timetable import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +33,7 @@ class API:
             self._session = aiohttp.ClientSession()
         return self._session
 
-    async def fetch_data(
+    async def _fetch_data(
         self,
         path: str,
         params: dict[str, str] | None = None,
@@ -66,7 +64,7 @@ class API:
                 headers={
                     "Authorization": "Anonymous",
                     "Content-type": "application/json",
-                    "User-Agent": f"TimetableSync/{__version__} (https://timetable.redbrick.dcu.ie)"
+                    "User-Agent": f"TimetableSync/{__version__} (https://timetable.redbrick.dcu.ie)",
                 },
                 json=json_data,
             ) as res:
@@ -84,32 +82,33 @@ class API:
                 data = await res.json(loads=orjson.loads)
                 return data
 
-    async def fetch_category_results(
+    async def fetch_category(
         self,
         category_type: models.CategoryType,
+        *,
         query: str | None = None,
         cache: bool | None = None,
     ) -> models.Category:
         # TODO: update example module codes
-        """Fetch results for a certain category type.
+        """Fetch a category by type.
 
         Parameters
         ----------
         category_type : models.CategoryType
-            The type of category to get results for.
+            The type of category to fetch.
         query : str | None, default None
-            A full or partial course or module code to search for (eg. BUS, COMSCI1, CA116).
+            A full or partial course, module or location code to search for (eg. BUS, COMSCI1, CA116).
         cache : bool, default True
-            Whether to cache the results.
+            Whether to cache the category.
 
         Returns
         -------
         models.Category
-            The fetched category results. This is not guaranteed to contain any categories.
+            The fetched category. This is not guaranteed to contain any items.
 
         Note
         ---
-        If query is specified, the results will not be cached.
+        If query is specified, the category will not be cached.
         """
         if cache is None:
             cache = True
@@ -121,7 +120,7 @@ class API:
             "query": query.strip() if query else "",
         }
 
-        data = await self.fetch_data(
+        data = await self._fetch_data(
             f"CategoryTypes/{category_type.value}/Categories/FilterWithCache/{INSTITUTION_IDENTITY}",
             params=params,
         )
@@ -132,7 +131,7 @@ class API:
         if total_pages > 1:
             data = await asyncio.gather(
                 *(
-                    self.fetch_data(
+                    self._fetch_data(
                         f"CategoryTypes/{category_type.value}/Categories/FilterWithCache/{INSTITUTION_IDENTITY}",
                         params={
                             "pageNumber": str(i),
@@ -151,7 +150,7 @@ class API:
 
         if (query is None or not query.strip()) and cache:
             await self.cache.set(
-                category_type.value,
+                f"category.{category_type.value}",
                 {
                     "TotalPages": total_pages,
                     "Results": results,
@@ -162,22 +161,24 @@ class API:
 
         return models.Category.from_payload({"Results": results, "Count": count})
 
-    async def get_category_results(
+    async def get_category(
         self,
         category_type: models.CategoryType,
+        *,
         query: str | None = None,
         count: int | None = None,
     ) -> models.Category | None:
-        """Get results for a certain category type, if cached.
+        """Get a category by type from the cache.
 
         Parameters
         ----------
         category_type : models.CategoryType
-            The type of category to get results for.
+            The type of category to get.
         query : str | None, default None
-            A full or partial course or module code to search for (eg. BUS, COMSCI1, CA116).
+            A full or partial course, module or location code to search for (eg. BUS, COMSCI1, CA116).
         count : int | None, default None
-            How many results to return when searching for `query`. Ignored if no query is provided.
+            The maximum number of category items to include when searching for `query`. If `None` will
+            include all matching items. Ignored if no query is provided.
 
         Returns
         -------
@@ -186,48 +187,49 @@ class API:
         None
             If the category was not cached or is outdated.
         """
-        data = await self.cache.get(category_type.value)
+        data = await self.cache.get(f"category.{category_type.value}")
         if data is None:
             return None
 
-        results = models.Category.from_payload(data)
+        category = models.Category.from_payload(data)
 
-        if query:
+        if query and query.strip():
+            filtered = self._filter_category_items_for(category.items, query, count)
             return models.Category(
-                self._filter_categories_for(results, query, count),
-                count if count is not None else len(results.items),
+                filtered,
+                len(filtered),
             )
 
-        return results
+        return category
 
-    def _filter_categories_for(
+    def _filter_category_items_for(
         self,
-        results: models.Category,
+        category_items: list[models.CategoryItem],
         query: str,
         count: int | None,
     ) -> list[models.CategoryItem]:
-        """Filter cached results for `query`.
+        """Filter category items for `query`, only returning items with a >80% match.
 
         Parameters
         ----------
-        results : models.Category
-            The category to filter though.
+        category_items : list[models.CategoryItem]
+            The category items to filter.
         query : str
-            The query to filter for. Checks against the category's name and description.
+            The query to filter for. Checks against the category's name and code.
         count : int | None
-            The number of results to return. If `None` will return all results sorted from
-            most similar to least.
+            The maximum number of category items to include when searching for `query`. If `None` will
+            include all matching items.
 
         Returns
         -------
         list[models.CategoryItem]
-            The items which matched the search query with a greater then 0.8 match,
+            The items which matched the search query with a >80% match,
             sorted from highest match to lowest.
         """
-        count = count if count is not None else len(results.items)
-        ratios: list[tuple[models.CategoryItem, float]] = []
+        count = count if count is not None else len(category_items)
+        results: typing.Iterable[tuple[models.CategoryItem, float]] = []
 
-        for item in results.items:
+        for item in category_items:
             item_ratios = [
                 fuzz.partial_ratio(
                     query, item.name, processor=fuzz_utils.default_process
@@ -236,11 +238,27 @@ class API:
                     query, item.code, processor=fuzz_utils.default_process
                 ),
             ]
-            ratios.append((item, max(item_ratios)))
+            results.append((item, max(item_ratios)))
 
-        ratios = filter(lambda r: r[1] > 80, ratios)
-        ratios = sorted(ratios, key=lambda r: r[1], reverse=True)
-        return [r[0] for r in ratios[:count]]
+        results = filter(lambda r: r[1] > 80, results)
+        results = sorted(results, key=lambda r: r[1], reverse=True)
+        return [r[0] for r in results[:count]]
+
+    # TODO: add identical fetch method
+    async def get_category_item(
+        self,
+        category_type: models.CategoryType,
+        item_identity: str,
+    ) -> models.CategoryItem | None:
+        # TODO: add docstring
+        category = await self.get_category(category_type)
+        if not category:
+            return None
+        
+        try:
+            return next(filter(lambda i: i.identity == item_identity, category.items))
+        except StopIteration:
+            return None
 
     async def fetch_category_timetables(
         self,
@@ -255,42 +273,41 @@ class API:
         Parameters
         ----------
         category_type : models.CategoryType
-            The type of category to get results in.
+            The type of category to get timetables in.
         category_identities : list[str]
             The identities of the categories to get timetables for.
-        start : datetime.datetime | None, default Sept 1 of the current academic years
+        start : datetime.datetime | None, default Sept 1 of the current academic year
             The start date/time of the timetable.
-        end : datetime.datetime | None, default May 1 of the current academic years
+        end : datetime.datetime | None, default May 1 of the current academic year
             The end date/time of the timetable.
         cache : bool, default True
-            Whether to cache the results. If start or end is specified, cache is set to False.
+            Whether to cache the timetables. If start or end is specified, cache is set to False.
 
         Returns
         -------
         list[models.CategoryItemTimetable]
             The requested timetables.
         """
-        if start or end:
-            cache = False
-        elif cache is None:
+        if cache is None:
             cache = True
 
+        # TODO: move below time conversion and error handling into function to remove duplication
         # TODO: if start is specified, should end default to something else? (e.g. 1 week later)
         start_default, end_default = utils.year_start_end_dates()
-        start = start or start_default
-        end = end or end_default
+        start = (start or start_default).astimezone(datetime.UTC)
+        end = (end or end_default).astimezone(datetime.UTC)
+
+        if not (start_default <= start <= end_default) or not (start_default <= end <= end_default):
+            raise ValueError("start and end datetimes must be contained within the current academic year range")
 
         if start > end:
             raise ValueError("Start date/time cannot be later than end date/time")
 
-        start = start.astimezone(datetime.UTC).replace(tzinfo=None)
-        end = end.astimezone(datetime.UTC).replace(tzinfo=None)
-
-        data = await self.fetch_data(
+        data = await self._fetch_data(
             f"CategoryTypes/Categories/Events/Filter/{INSTITUTION_IDENTITY}",
             params={
-                "startRange": f"{start.isoformat()}Z",
-                "endRange": f"{end.isoformat()}Z",
+                "startRange": f"{start_default.isoformat()}Z",
+                "endRange": f"{end_default.isoformat()}Z",
             },
             json_data={
                 "ViewOptions": {
@@ -312,33 +329,38 @@ class API:
         )
 
         timetables: list[models.CategoryItemTimetable] = []
-        for timetable in data["CategoryEvents"]:
-            timetables.append(models.CategoryItemTimetable.from_payload(timetable))
+        for timetable_data in data["CategoryEvents"]:
+            timetable = models.CategoryItemTimetable.from_payload(timetable_data)
+            timetable.events = list(
+                filter(lambda e: start <= e.start <= end, timetable.events)
+            )
+            timetables.append(timetable)
 
             if cache:
+                # TODO: consider storing data under `{category.identity}.{timetable.identity}`
                 await self.cache.set(
-                    timetable["Identity"],
-                    timetable,
+                    f"timetable.{timetable.identity}",
+                    timetable_data,
                     expires_in=datetime.timedelta(hours=12),
                 )
 
         return timetables
 
-    async def get_category_timetable(
+    async def get_category_item_timetable(
         self,
-        category_identity: str,
+        item_identity: str,
         start: datetime.datetime | None = None,
         end: datetime.datetime | None = None,
     ) -> models.CategoryItemTimetable | None:
-        """Get the timetable for category_identity.
+        """Get the timetable for item_identity.
 
         Parameters
         ----------
-        category_identity : str
+        item_identity : str
             The identity of the category to get the timetable for.
-        start : datetime.datetime | None, default Sept 1 of the current academic years
+        start : datetime.datetime | None, default Sept 1 of the current academic year
             The start date/time of the timetable.
-        end : datetime.datetime | None, default May 1 of the current academic years
+        end : datetime.datetime | None, default May 1 of the current academic year
             The end date/time of the timetable.
 
         Returns
@@ -348,7 +370,7 @@ class API:
         None
             If the timetable was not cached or is outdated.
         """
-        data = await self.cache.get(category_identity)
+        data = await self.cache.get(f"timetable.{item_identity}")
         if data is None:
             return None
 
@@ -356,146 +378,17 @@ class API:
 
         if start or end:
             start_default, end_default = utils.year_start_end_dates()
-            start = start or start_default
-            end = end or end_default
+            start = (start or start_default).astimezone(datetime.UTC)
+            end = (end or end_default).astimezone(datetime.UTC)
 
-            if not start.tzinfo:
-                start = start.replace(tzinfo=datetime.UTC)
-            if not end.tzinfo:
-                end = end.replace(tzinfo=datetime.UTC)
+            if not (start_default <= start <= end_default) or not (start_default <= end <= end_default):
+                raise ValueError("start and end datetimes must be contained within the current academic year range")
+
+            if start > end:
+                raise ValueError("Start date/time cannot be later than end date/time")
 
             timetable.events = list(
                 filter(lambda e: start <= e.start <= end, timetable.events)
             )
 
         return timetable
-
-    async def gather_events_for_courses(
-        self,
-        course_codes: list[str],
-        start: datetime.datetime | None,
-        end: datetime.datetime | None,
-    ) -> list[models.Event]:
-        """Fetch timetabled events for multiple courses.
-
-        Parameters
-        ----------
-        course_codes : str
-            The course code(s) to fetch events for.
-        start : datetime.datetime | None, default Sept 1 of the current academic year
-            The start date/time of the events.
-        end : datetime.datetime | None, default May 1 of the current academic year
-            The end date/time of the events.
-
-        Returns
-        -------
-        list[models.Event]
-            The events.
-        """
-        course_identities: list[str] = []
-
-        for code in course_codes:
-            course = await self.fetch_category_results(
-                models.CategoryType.PROGRAMMES_OF_STUDY,
-                code,
-            )
-            if not course.items:
-                raise models.InvalidCodeError(code)
-
-            course_identities.append(course.items[0].identity)
-
-        events: list[models.Event] = []
-        to_fetch: list[str] = []
-
-        if start is None and end is None:
-            for id_ in course_identities:
-                timetable = await self.get_category_timetable(id_, start=start, end=end)
-                if timetable:
-                    logger.info(
-                        f"Using cached events for course {id_} (total {len(timetable.events)})"
-                    )
-                    events.extend(timetable.events)
-                else:
-                    to_fetch.append(id_)
-        else:
-            to_fetch = course_identities
-
-        if to_fetch:
-            timetables = await self.fetch_category_timetables(
-                models.CategoryType.PROGRAMMES_OF_STUDY,
-                to_fetch,
-                start=start,
-                end=end,
-            )
-            for timetable in timetables:
-                logger.info(
-                    f"Fetched events for course {timetable.name} (total {len(timetable.events)})"
-                )
-                events.extend(timetable.events)
-
-        return events
-
-    async def gather_events_for_modules(
-        self,
-        module_codes: list[str],
-        start: datetime.datetime | None,
-        end: datetime.datetime | None,
-    ) -> list[models.Event]:
-        """Fetch timetabled events for multiple modules.
-
-        Parameters
-        ----------
-        module_codes : list[str]
-            The module code(s) to fetch events for.
-        start : datetime.datetime | None, default Sept 1 of the current academic year
-            The start date/time of the events.
-        end : datetime.datetime | None, default May 1 of the current academic year
-            The end date/time of the events.
-
-        Returns
-        -------
-        list[models.Event]
-            The events.
-        """
-        module_identities: list[str] = []
-
-        for code in module_codes:
-            module = await self.fetch_category_results(
-                models.CategoryType.MODULES, code, cache=False
-            )
-            if not module.items:
-                raise models.InvalidCodeError(code)
-
-            module_identities.append(module.items[0].identity)
-
-        events: list[models.Event] = []
-        to_fetch: list[str] = []
-
-        if start is None and end is None:
-            for id_ in module_identities:
-                timetable = await self.get_category_timetable(id_, start, end)
-                if timetable:
-                    logger.info(
-                        f"Using cached events for module {id_} (total {len(timetable.events)})"
-                    )
-                    events.extend(timetable.events)
-                else:
-                    to_fetch.append(id_)
-        else:
-            to_fetch = module_identities
-
-        if to_fetch:
-            timetables = await self.fetch_category_timetables(
-                models.CategoryType.MODULES,
-                to_fetch,
-                start=start,
-                end=end,
-                cache=True,
-            )
-            for timetable in timetables:
-                logger.info(
-                    f"Fetched events for module {timetable.name} (total {len(timetable.events)})"
-                )
-                events.extend(timetable.events)
-
-        return events
