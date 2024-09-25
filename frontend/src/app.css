@@ -74,7 +74,7 @@ html[data-theme="night"] .fc .fc-list-sticky .fc-list-day > * {
     }
 }
 
-@media (max-width: 640px) { 
+@media (max-width: 768px) { 
     .fc-toolbar-title {
         display: none;
     }

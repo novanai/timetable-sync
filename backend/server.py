@@ -1,6 +1,6 @@
+import collections
 import datetime
 import logging
-import time
 
 import blacksheep
 import orjson
@@ -27,7 +27,7 @@ docs.bind_app(app)
 
 @app.on_start
 async def start_session() -> None:
-    await get_or_fetch_and_cache_categories()
+    await utils.get_basic_category_results(api)
 
 
 @app.on_stop
@@ -35,34 +35,10 @@ async def stop_session() -> None:
     await api.session.close()
 
 
-async def get_or_fetch_and_cache_categories() -> (
-    tuple[models.Category, models.Category]
-):
-    if not (
-        courses := await api.get_category_results(
-            models.CategoryType.PROGRAMMES_OF_STUDY
-        )
-    ):
-        start = time.time()
-        courses = await api.fetch_category_results(
-            models.CategoryType.PROGRAMMES_OF_STUDY, cache=True
-        )
-        logger.info(f"Cached Programmes of Study in {time.time()-start:.2f}s")
-
-    if not (modules := await api.get_category_results(models.CategoryType.MODULES)):
-        start = time.time()
-        modules = await api.fetch_category_results(
-            models.CategoryType.MODULES, cache=True
-        )
-        logger.info(f"Cached Modules in {time.time()-start:.2f}s")
-
-    return courses, modules
-
-
 @docs.ignore()
 @blacksheep.route("/api/healthcheck")
 async def healthcheck() -> blacksheep.Response:
-    return blacksheep.Response(status=200)
+    return blacksheep.ok()
 
 
 @docs.ignore()
@@ -70,42 +46,19 @@ async def healthcheck() -> blacksheep.Response:
 async def all_category_values(
     category_type: str,
 ) -> blacksheep.Response:
-    if category_type not in ("courses", "modules"):
-        return blacksheep.Response(
-            status=400,
-            content=blacksheep.Content(
-                content_type=b"text/plain",
-                data=b"Invalid value provided.",
-            ),
+    if category_type not in ("courses", "modules", "locations"):
+        return blacksheep.status_code(
+            400,
+            "Invalid value provided.",
         )
 
-    courses, modules = await get_or_fetch_and_cache_categories()
-
-    data: list[str | dict[str, str]]
-
-    if category_type == "courses":
-        data = list(set(c.name for c in courses.items))
-        data.sort(key=str)
-    else:
-        assert category_type == "modules"
-        codes: list[str] = []
-        data = []
-
-        for m in modules.items:
-            if m.code not in codes:
-                data.append(
-                    {
-                        "name": m.name,
-                        "value": m.code,
-                    }
-                )
-                codes.append(m.code)
+    categories = await utils.get_basic_category_results(api)
 
     return blacksheep.Response(
         status=200,
         content=blacksheep.Content(
             content_type=b"application/json",
-            data=orjson.dumps(data),
+            data=orjson.dumps(getattr(categories, category_type)),
         ),
     )
 
@@ -113,9 +66,10 @@ async def all_category_values(
 @docs(api_docs.API)
 @blacksheep.route("/api")
 async def timetable_api(
-    course: str | None = None,
+    course: str | None = None,  # NOTE: backwards compatibility only
     courses: str | None = None,
     modules: str | None = None,
+    locations: str | None = None,
     format: str | None = None,
     display: bool | None = None,
     start: str | None = None,
@@ -125,23 +79,86 @@ async def timetable_api(
     start_date = datetime.datetime.fromisoformat(start) if start else None
     end_date = datetime.datetime.fromisoformat(end) if end else None
 
-    if not course and not courses and not modules:
-        raise ValueError("No courses or modules provided.")
+    if not course and not courses and not modules and not locations:
+        raise ValueError("No courses, modules or locations provided.")
     elif format_ is models.ResponseFormat.UNKNOWN:
         raise ValueError(f"Invalid format '{format_}'.")
 
     events: list[models.Event] = []
+    codes: dict[models.CategoryType, list[str]] = collections.defaultdict(list)
 
-    if course or courses:
-        codes = [c.strip() for c in courses.split(",")] if courses else []
-        if course and course.strip() not in codes:
-            codes.append(course.strip())
+    def str_to_list(text: str) -> list[str]:
+        return [t.strip() for t in text.split(",")]
 
-        events.extend(await generate_courses_timetables(codes, start_date, end_date))
+    if courses and courses.strip():
+        codes[models.CategoryType.PROGRAMMES_OF_STUDY].extend(str_to_list(courses))
+    if course and course.strip() not in codes[models.CategoryType.PROGRAMMES_OF_STUDY]:
+        codes[models.CategoryType.PROGRAMMES_OF_STUDY].append(course.strip())
     if modules:
-        codes = [m.strip() for m in modules.split(",")]
+        codes[models.CategoryType.MODULES].extend(str_to_list(modules))
+    if locations:
+        codes[models.CategoryType.LOCATIONS].extend(str_to_list(locations))
 
-        events.extend(await generate_modules_timetables(codes, start_date, end_date))
+    for group, cat_codes in codes.items():
+        for code in cat_codes:
+            # code is a category item identity and timetable is cached
+            timetable = await api.get_category_item_timetable(
+                group.value, code, start=start_date, end=end_date
+            )
+            if timetable:
+                events.extend(timetable.events)
+                logger.info(
+                    f"Using cached events for {group} {timetable.identity} (total {len(timetable.events)})"
+                )
+                continue
+
+            # code is a category item identity and timetable must be fetched
+            item = await api.get_category_item(group, code)
+            if item:
+                timetables = await api.fetch_category_items_timetables(
+                    group,
+                    [item.identity],
+                    start=start_date,
+                    end=end_date,
+                )
+                events.extend(timetables[0].events)
+                logger.info(
+                    f"Fetched events for {group} {timetables[0].identity} (total {len(timetables[0].events)})"
+                )
+                continue
+
+            # code is not a category item, search cached category items for it
+            category = await api.get_category(group, query=code, count=1)
+            if not category or not category.items:
+                # could not find category item in cache, fetch it
+                category = await api.fetch_category(group, query=code)
+                if not category.items:
+                    raise ValueError(f"Invalid code/identity: {code}")
+
+            item = category.items[0]
+
+            # timetable is cached
+            timetable = await api.get_category_item_timetable(
+                group.value, item.identity, start=start_date, end=end_date
+            )
+            if timetable:
+                events.extend(timetable.events)
+                logger.info(
+                    f"Using cached events for {group} {timetable.identity} (total {len(timetable.events)})"
+                )
+                continue
+
+            # timetable is not cached
+            timetables = await api.fetch_category_items_timetables(
+                group,
+                [item.identity],
+                start=start_date,
+                end=end_date,
+            )
+            logger.info(
+                f"Fetched events for {group} {timetables[0].identity} (total {len(timetables[0].events)})"
+            )
+            events.extend(timetables[0].events)
 
     if format_ is models.ResponseFormat.ICAL:
         timetable = utils.generate_ical_file(events)
@@ -156,30 +173,6 @@ async def timetable_api(
             data=timetable,
         ),
     )
-
-
-async def generate_courses_timetables(
-    course_codes: list[str],
-    start: datetime.datetime | None = None,
-    end: datetime.datetime | None = None,
-) -> list[models.Event]:
-    logger.info(f"Generating timetables for courses {', '.join(course_codes)}")
-
-    events = await api.gather_events_for_courses(course_codes, start, end)
-
-    return events
-
-
-async def generate_modules_timetables(
-    module_codes: list[str],
-    start: datetime.datetime | None = None,
-    end: datetime.datetime | None = None,
-) -> list[models.Event]:
-    logger.info(f"Generating timetable for modules {', '.join(module_codes)}")
-
-    events = await api.gather_events_for_modules(module_codes, start, end)
-
-    return events
 
 
 # TODO: add error handler

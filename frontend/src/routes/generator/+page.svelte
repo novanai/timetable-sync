@@ -17,6 +17,12 @@
             data: data.modules,
             max: 20,
         },
+        locations: {
+            name: "Locations",
+            selected: [],
+            data: data.locations,
+            max: 8
+        },
     };
 </script>
 
@@ -69,7 +75,9 @@
                 </div>
                 <Svelecte
                     class="mt-2"
-                    options={option.data}
+                    options={option.data.map((item) => {
+                        return { value: item.identity, text: item.name };
+                    })}
                     multiple
                     max={option.max}
                     clearable

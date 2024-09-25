@@ -28,8 +28,14 @@
             data: data.modules,
             max: 20,
         },
+        locations: {
+            name: "Locations",
+            selected: [],
+            data: data.locations,
+            max: 8,
+        },
     };
-    // TODO: store events as {module/course identity: {event identity: event}}
+    // TODO: store events as {module/course/location identity: {event identity: event}}
     let events = {};
 
     let calendarEl;
@@ -103,7 +109,8 @@
         let events_data;
         if (
             timetable_data.courses.selected.length == 0 &&
-            timetable_data.modules.selected.length == 0
+            timetable_data.modules.selected.length == 0 &&
+            timetable_data.locations.selected.length == 0
         ) {
             events_data = [];
         } else {
@@ -112,6 +119,7 @@
 
             params.set("courses", timetable_data.courses.selected);
             params.set("modules", timetable_data.modules.selected);
+            params.set("locations", timetable_data.locations.selected)
             params.set("start", view.currentStart.toISOString());
             params.set("end", view.currentEnd.toISOString());
             params.set("format", "json");
@@ -208,7 +216,9 @@
         <div role="tabpanel" class="tab-content mt-2">
             <Svelecte
                 class="mt-2"
-                options={option.data}
+                options={option.data.map((item) => {
+                    return { value: item.identity, text: item.name };
+                })}
                 multiple
                 max={option.max}
                 clearable

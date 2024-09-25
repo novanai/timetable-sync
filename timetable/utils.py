@@ -3,16 +3,24 @@ from __future__ import annotations
 import collections
 import dataclasses
 import datetime
+import logging
 import re
+import time
 import typing
 
 import icalendar
 import orjson
+
+from timetable import __version__, models
 from timetable.types import is_str_list
 
-from timetable import models
+if typing.TYPE_CHECKING:
+    from timetable import api as api_
+
+logger = logging.getLogger(__name__)
 
 ORDER: typing.Final[str] = "BG123456789"
+SEMESTER_CODE = re.compile(r"[\[\(][0-2F,]+[\]\)]")
 SMALL_WORDS = re.compile(
     r"\b(a|an|and|at|but|by|de|en|for|if|in|of|on|or|the|to|via|vs?\.?)\b",
     re.IGNORECASE,
@@ -39,10 +47,10 @@ def parse_weeks(weeks: str) -> list[int]:
     return final
 
 
-def year_start_end_dates() -> tuple[datetime.datetime, datetime.datetime]:
+def default_year_start_end_dates() -> tuple[datetime.datetime, datetime.datetime]:
     """Get default start and end dates for the academic year.
 
-    * Default start date: Sept 1
+    * Default start date: Aug 1
     * Default end date: May 1
 
     Returns
@@ -51,11 +59,78 @@ def year_start_end_dates() -> tuple[datetime.datetime, datetime.datetime]:
         The start and end dates.
     """
     now = datetime.datetime.now(datetime.timezone.utc)
-    start_year = now.year if now.month >= 9 else now.year - 1
-    end_year = now.year + 1 if now.month >= 9 else now.year
-    start = datetime.datetime(start_year, 9, 1)
-    end = datetime.datetime(end_year, 5, 1)
+    start_year = now.year if now.month >= 8 else now.year - 1
+    end_year = now.year + 1 if now.month >= 8 else now.year
+    start = datetime.datetime(start_year, 8, 1, tzinfo=datetime.timezone.utc)
+    end = datetime.datetime(end_year, 5, 1, tzinfo=datetime.timezone.utc)
     return (start, end)
+
+
+def calc_start_end_range(
+    start: datetime.datetime | None = None, end: datetime.datetime | None = None
+) -> tuple[datetime.datetime, datetime.datetime]:
+    start_default, end_default = default_year_start_end_dates()
+    start = (start or start_default).astimezone(datetime.UTC)
+    end = (end or end_default).astimezone(datetime.UTC)
+
+    # TODO: is this warning necessary?
+    if not (start_default <= start <= end_default) or not (
+        start_default <= end <= end_default
+    ):
+        logger.warning(
+            f"{start} and {end} datetimes not within the current academic year range"
+        )
+
+    # TODO: set end to start + 1 week if end before start
+    if start > end:
+        raise ValueError("Start date/time cannot be later than end date/time")
+
+    return start, end
+
+
+@dataclasses.dataclass
+class Category:
+    name: str
+    identity: str
+
+
+@dataclasses.dataclass
+class Categories:
+    courses: list[Category]
+    modules: list[Category]
+    locations: list[Category]
+
+
+async def get_basic_category_results(api: api_.API) -> Categories:
+    results: dict[models.CategoryType, models.Category] = {}
+
+    for category in (
+        models.CategoryType.PROGRAMMES_OF_STUDY,
+        models.CategoryType.MODULES,
+        models.CategoryType.LOCATIONS,
+    ):
+        result = await api.get_category(category)
+        if not result:
+            start = time.time()
+            result = await api.fetch_category(category, cache=True)
+            logger.info(f"Cached {category} in {time.time()-start:.2f}s")
+
+        results[category] = result
+
+    return Categories(
+        courses=[
+            Category(name=c.name, identity=c.identity)
+            for c in results[models.CategoryType.PROGRAMMES_OF_STUDY].items
+        ],
+        modules=[
+            Category(name=m.name, identity=m.identity)
+            for m in results[models.CategoryType.MODULES].items
+        ],
+        locations=[
+            Category(name=l.name, identity=l.identity)
+            for l in results[models.CategoryType.LOCATIONS].items
+        ],
+    )
 
 
 # Converted to python and modified from
@@ -96,6 +171,7 @@ def title_case(text: str):
     return do_title_case(text)
 
 
+# TODO: rework this to be an optional attribute of the `Event` class
 @dataclasses.dataclass
 class EventDisplayData:
     """Display data for events."""
@@ -127,18 +203,14 @@ class EventDisplayData:
     def from_event(cls, event: models.Event) -> typing.Self:
         # SUMMARY
 
-        name = (
-            re.sub(r"[\[\(][0-2F,]+[\]\)]", "", n)
-            if (n := event.module_name)
-            else event.name
-        )
+        name = re.sub(SEMESTER_CODE, "", n) if (n := event.module_name) else event.name
 
         if event.description and event.description.lower().strip() == "lab":
             activity = "Lab"
         elif event.parsed_name_data:
-            activity = event.parsed_name_data[0].activity_type.display()
+            activity = event.parsed_name_data[0].activity_type.display
         else:
-            activity = ""
+            activity = None
 
         if activity and event.group_name:
             summary_long = f"({activity}, Group {event.group_name})"
@@ -147,7 +219,7 @@ class EventDisplayData:
         elif event.group_name:
             summary_long = f"(Group {event.group_name})"
         else:
-            summary_long = ""
+            summary_long = None
 
         summary_long = title_case(
             (name + (f" {summary_long}" if summary_long else "")).strip()
@@ -201,23 +273,19 @@ class EventDisplayData:
 
         # DESCRIPTION
 
-        if not activity:
-            description = event.description
-        elif (
-            activity
-            and event.description
-            and event.description.lower() != activity.lower()
-        ):
-            description = f"{event.description}, {activity}"
-        else:
-            description = activity
-
         event_type = (
-            data[0].delivery_type.display()
+            data[0].delivery_type.display
             if (data := event.parsed_name_data)
             else event.event_type
         )
-        description = f"{f'{activity}, ' if activity else ''}{event_type}"
+        if event_type.lower().strip() == "booking":
+            description = (
+                f"{event.description}, {event_type}"
+                if event.description
+                else event_type
+            )
+        else:
+            description = f"{activity}, {event_type}" if activity else event_type
 
         return cls(
             summary=summary_short,
@@ -234,8 +302,10 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
 
     calendar = icalendar.Calendar()
     calendar.add("METHOD", "PUBLISH")
-    calendar.add("PRODID", "-//nova@redbrick.dcu.ie//TimetableSync//EN")
-    calendar.add("VERSION", "2.0")
+    calendar.add(
+        "PRODID", f"-//timetable.redbrick.dcu.ie//TimetableSync {__version__}//EN"
+    )
+    calendar.add("VERSION", __version__)
 
     for item in display_data:
         event = icalendar.Event()
@@ -244,7 +314,10 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
         event.add("DTSTART", item.original_event.start)
         event.add("DTEND", item.original_event.end)
         event.add("SUMMARY", item.summary_long)
-        event.add("DESCRIPTION", f"Details: {item.description}\nStaff: {item.original_event.staff_member}")
+        event.add(
+            "DESCRIPTION",
+            f"Details: {item.description}\nStaff: {item.original_event.staff_member}",
+        )
         event.add("LOCATION", item.location_long)
         event.add("CLASS", "PUBLIC")
         calendar.add_component(event)
