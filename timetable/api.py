@@ -145,7 +145,7 @@ class API:
 
         if (query is None or not query.strip()) and cache:
             await self.cache.set(
-                f"category.{category_type.value}",
+                category_type.value,
                 {
                     "TotalPages": total_pages,
                     "Results": results,
@@ -182,7 +182,7 @@ class API:
         None
             If the category was not cached or is outdated.
         """
-        data = await self.cache.get(f"category.{category_type.value}")
+        data = await self.cache.get(category_type.value)
         if data is None:
             return None
 
