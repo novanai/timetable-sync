@@ -216,7 +216,9 @@
         <div role="tabpanel" class="tab-content mt-2">
             <Svelecte
                 class="mt-2"
-                options={option.data}
+                options={option.data.map((item) => {
+                    return { value: item.identity, text: item.name };
+                })}
                 multiple
                 max={option.max}
                 clearable

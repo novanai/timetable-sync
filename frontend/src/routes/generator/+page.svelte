@@ -76,7 +76,7 @@
                 <Svelecte
                     class="mt-2"
                     options={option.data.map((item) => {
-                        return { value: item.code, text: item.name };
+                        return { value: item.identity, text: item.name };
                     })}
                     multiple
                     max={option.max}

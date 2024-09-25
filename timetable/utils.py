@@ -91,7 +91,7 @@ def calc_start_end_range(
 @dataclasses.dataclass
 class Category:
     name: str
-    code: str
+    identity: str
 
 
 @dataclasses.dataclass
@@ -117,18 +117,17 @@ async def get_basic_category_results(api: api_.API) -> Categories:
 
         results[category] = result
 
-    # TODO: use identity here instead of code, requires updating the frontend
     return Categories(
         courses=[
-            Category(name=c.name, code=c.code)
+            Category(name=c.name, identity=c.identity)
             for c in results[models.CategoryType.PROGRAMMES_OF_STUDY].items
         ],
         modules=[
-            Category(name=m.name, code=m.code)
+            Category(name=m.name, identity=m.identity)
             for m in results[models.CategoryType.MODULES].items
         ],
         locations=[
-            Category(name=l.name, code=l.code)
+            Category(name=l.name, identity=l.identity)
             for l in results[models.CategoryType.LOCATIONS].items
         ],
     )
