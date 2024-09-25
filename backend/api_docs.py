@@ -29,7 +29,7 @@ API = EndpointDocs(
             "The module(s) to generate a timetable for.",
             str,
             required=False,
-            example="CA103,CA116,MS134",
+            example="CSC1061,CSC1003,MTH1025",
         ),
         "format": ParameterInfo(
             "The response format.\n\nAllowed values: 'ical' or 'json'.\nDefault: 'ical'.",
@@ -72,7 +72,7 @@ VERSION:2.0
 PRODID:-//nova@redbrick.dcu.ie//TimetableSync//EN
 METHOD:PUBLISH
 BEGIN:VEVENT
-SUMMARY:CA116 Computing Programming I (Lecture)
+SUMMARY:CSC1003 Computer Programming I (Lecture)
 DTSTART:20230925T090000Z
 DTEND:20230925T110000Z
 DTSTAMP:20231030T154328Z
@@ -111,18 +111,18 @@ END:VCALENDAR
                                     ),
                                 ],
                                 description="Lecture",
-                                name="CA116[1]OC/L1/01",
+                                name="CSC1003[1]OC/L1/01",
                                 event_type="On Campus",
                                 last_modified=datetime.datetime.fromisoformat(
                                     "2023-06-29T09:41:17.367634+00:00"
                                 ),
-                                module_name="CA116[1] Computing Programming I",
+                                module_name="CSC1003[1] Computer Programming I",
                                 staff_member="Blott S",
                                 weeks=[3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
                                 group_name=None,
                                 parsed_name_data=[
                                     models.ParsedNameData(
-                                        module_codes=["CA116"],
+                                        module_codes=["CSC1003"],
                                         semester=models.Semester.SEMESTER_1,
                                         delivery_type=models.DeliveryType.ON_CAMPUS,
                                         activity_type=models.ActivityType.LECTURE,

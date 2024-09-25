@@ -35,7 +35,7 @@
             max: 8,
         },
     };
-    // TODO: store events as {module/course identity: {event identity: event}}
+    // TODO: store events as {module/course/location identity: {event identity: event}}
     let events = {};
 
     let calendarEl;

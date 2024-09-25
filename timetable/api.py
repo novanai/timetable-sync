@@ -14,11 +14,7 @@ from timetable import cache as cache_
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://scientia-eu-v4-api-d1-03.azurewebsites.net/api/Public"
-
 INSTITUTION_IDENTITY = "a1fdee6b-68eb-47b8-b2ac-a4c60c8e6177"
-MODULES = "525fe79b-73c3-4b5c-8186-83c652b3adcc"
-LOCATIONS = "1e042cb1-547d-41d4-ae93-a1f2c3d34538"
-PROGRAMMES_OF_STUDY = "241e4d36-60e0-49f8-b27e-99416745d98d"
 
 
 class API:
@@ -89,15 +85,14 @@ class API:
         query: str | None = None,
         cache: bool | None = None,
     ) -> models.Category:
-        # TODO: update example module codes
-        """Fetch a category by type.
+        """Fetch a category.
 
         Parameters
         ----------
         category_type : models.CategoryType
-            The type of category to fetch.
+            The category type.
         query : str | None, default None
-            A full or partial course, module or location code to search for (eg. BUS, COMSCI1, CA116).
+            A full or partial course, module or location code to search for.
         cache : bool, default True
             Whether to cache the category.
 
@@ -107,7 +102,7 @@ class API:
             The fetched category. This is not guaranteed to contain any items.
 
         Note
-        ---
+        ----
         If query is specified, the category will not be cached.
         """
         if cache is None:
@@ -168,14 +163,14 @@ class API:
         query: str | None = None,
         count: int | None = None,
     ) -> models.Category | None:
-        """Get a category by type from the cache.
+        """Get a category from the cache.
 
         Parameters
         ----------
         category_type : models.CategoryType
-            The type of category to get.
+            The category type.
         query : str | None, default None
-            A full or partial course, module or location code to search for (eg. BUS, COMSCI1, CA116).
+            A full or partial course, module or location code to search for.
         count : int | None, default None
             The maximum number of category items to include when searching for `query`. If `None` will
             include all matching items. Ignored if no query is provided.
@@ -217,8 +212,8 @@ class API:
         query : str
             The query to filter for. Checks against the category's name and code.
         count : int | None
-            The maximum number of category items to include when searching for `query`. If `None` will
-            include all matching items.
+            The maximum number of category items to include when searching for `query`.
+            If `None` will include all matching items.
 
         Returns
         -------
@@ -230,6 +225,8 @@ class API:
         results: typing.Iterable[tuple[models.CategoryItem, float]] = []
 
         for item in category_items:
+            # NOTE: `item.description` is not used in the filtering because it does not provide
+            # enough unique information that cannot be provided by `name` or `code`
             item_ratios = [
                 fuzz.partial_ratio(
                     query, item.name, processor=fuzz_utils.default_process
@@ -244,44 +241,52 @@ class API:
         results = sorted(results, key=lambda r: r[1], reverse=True)
         return [r[0] for r in results[:count]]
 
-    # TODO: add identical fetch method
+    # NOTE: there is no equivalent fetch method as the api endpoint does not exit
     async def get_category_item(
         self,
         category_type: models.CategoryType,
         item_identity: str,
     ) -> models.CategoryItem | None:
-        # TODO: add docstring
+        """Get a category item from the cache.
+
+        Parameters
+        ----------
+        category_type : models.CategoryType
+            The type of category type of the item.
+        item_identity : str
+            The identity of the item.
+        """
         category = await self.get_category(category_type)
         if not category:
             return None
-        
+
         try:
             return next(filter(lambda i: i.identity == item_identity, category.items))
         except StopIteration:
             return None
 
-    async def fetch_category_timetables(
+    async def fetch_category_items_timetables(
         self,
         category_type: models.CategoryType,
-        category_identities: list[str],
+        item_identities: list[str],
         start: datetime.datetime | None = None,
         end: datetime.datetime | None = None,
         cache: bool | None = None,
     ) -> list[models.CategoryItemTimetable]:
-        """Fetch the timetable for category_identities belonging to category_type.
+        """Fetch the timetable for item_identities belonging to category_type.
 
         Parameters
         ----------
         category_type : models.CategoryType
             The type of category to get timetables in.
-        category_identities : list[str]
-            The identities of the categories to get timetables for.
-        start : datetime.datetime | None, default Sept 1 of the current academic year
+        item_identities : list[str]
+            The identities of the items to get timetables for.
+        start : datetime.datetime | None, default Aug 1 of the current academic year
             The start date/time of the timetable.
         end : datetime.datetime | None, default May 1 of the current academic year
             The end date/time of the timetable.
         cache : bool, default True
-            Whether to cache the timetables. If start or end is specified, cache is set to False.
+            Whether to cache the timetables.
 
         Returns
         -------
@@ -291,17 +296,8 @@ class API:
         if cache is None:
             cache = True
 
-        # TODO: move below time conversion and error handling into function to remove duplication
-        # TODO: if start is specified, should end default to something else? (e.g. 1 week later)
-        start_default, end_default = utils.year_start_end_dates()
-        start = (start or start_default).astimezone(datetime.UTC)
-        end = (end or end_default).astimezone(datetime.UTC)
-
-        if not (start_default <= start <= end_default) or not (start_default <= end <= end_default):
-            raise ValueError("start and end datetimes must be contained within the current academic year range")
-
-        if start > end:
-            raise ValueError("Start date/time cannot be later than end date/time")
+        start_default, end_default = utils.default_year_start_end_dates()
+        start, end = utils.calc_start_end_range(start, end)
 
         data = await self._fetch_data(
             f"CategoryTypes/Categories/Events/Filter/{INSTITUTION_IDENTITY}",
@@ -322,7 +318,7 @@ class API:
                 "CategoryTypesWithIdentities": [
                     {
                         "CategoryTypeIdentity": category_type.value,
-                        "CategoryIdentities": category_identities,
+                        "CategoryIdentities": item_identities,
                     }
                 ],
             },
@@ -337,9 +333,8 @@ class API:
             timetables.append(timetable)
 
             if cache:
-                # TODO: consider storing data under `{category.identity}.{timetable.identity}`
                 await self.cache.set(
-                    f"timetable.{timetable.identity}",
+                    f"{category_type.value}.{timetable.identity}",
                     timetable_data,
                     expires_in=datetime.timedelta(hours=12),
                 )
@@ -348,6 +343,7 @@ class API:
 
     async def get_category_item_timetable(
         self,
+        category_identity: str,
         item_identity: str,
         start: datetime.datetime | None = None,
         end: datetime.datetime | None = None,
@@ -356,9 +352,11 @@ class API:
 
         Parameters
         ----------
+        category_identity : str
+            The type of category to get the timetable in.
         item_identity : str
-            The identity of the category to get the timetable for.
-        start : datetime.datetime | None, default Sept 1 of the current academic year
+            The identity of the item to get the timetable for.
+        start : datetime.datetime | None, default Aug 1 of the current academic year
             The start date/time of the timetable.
         end : datetime.datetime | None, default May 1 of the current academic year
             The end date/time of the timetable.
@@ -370,23 +368,14 @@ class API:
         None
             If the timetable was not cached or is outdated.
         """
-        data = await self.cache.get(f"timetable.{item_identity}")
+        data = await self.cache.get(f"{category_identity}.{item_identity}")
         if data is None:
             return None
 
         timetable = models.CategoryItemTimetable.from_payload(data)
 
         if start or end:
-            start_default, end_default = utils.year_start_end_dates()
-            start = (start or start_default).astimezone(datetime.UTC)
-            end = (end or end_default).astimezone(datetime.UTC)
-
-            if not (start_default <= start <= end_default) or not (start_default <= end <= end_default):
-                raise ValueError("start and end datetimes must be contained within the current academic year range")
-
-            if start > end:
-                raise ValueError("Start date/time cannot be later than end date/time")
-
+            start, end = utils.calc_start_end_range(start, end)
             timetable.events = list(
                 filter(lambda e: start <= e.start <= end, timetable.events)
             )

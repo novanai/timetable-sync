@@ -1,3 +1,4 @@
+import collections
 import datetime
 import logging
 
@@ -9,7 +10,6 @@ from openapidocs.v3 import Info  # pyright: ignore[reportMissingTypeStubs]
 from backend import __version__, api_docs
 from timetable import api as api_
 from timetable import models, utils
-import collections
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ async def stop_session() -> None:
 @docs.ignore()
 @blacksheep.route("/api/healthcheck")
 async def healthcheck() -> blacksheep.Response:
-    return blacksheep.Response(status=200)
+    return blacksheep.ok()
 
 
 @docs.ignore()
@@ -46,14 +46,10 @@ async def healthcheck() -> blacksheep.Response:
 async def all_category_values(
     category_type: str,
 ) -> blacksheep.Response:
-    # TODO: set category_type to a Final and move this into error handler
     if category_type not in ("courses", "modules", "locations"):
-        return blacksheep.Response(
-            status=400,
-            content=blacksheep.Content(
-                content_type=b"text/plain",
-                data=b"Invalid value provided.",
-            ),
+        return blacksheep.status_code(
+            400,
+            "Invalid value provided.",
         )
 
     categories = await utils.get_basic_category_results(api)
@@ -62,9 +58,7 @@ async def all_category_values(
         status=200,
         content=blacksheep.Content(
             content_type=b"application/json",
-            data=orjson.dumps(
-                getattr(categories, category_type)
-            ),
+            data=orjson.dumps(getattr(categories, category_type)),
         ),
     )
 
@@ -72,7 +66,7 @@ async def all_category_values(
 @docs(api_docs.API)
 @blacksheep.route("/api")
 async def timetable_api(
-    course: str | None = None, # Deprecated, cannot remove for backwards compatibility
+    course: str | None = None,  # NOTE: backwards compatibility only
     courses: str | None = None,
     modules: str | None = None,
     locations: str | None = None,
@@ -87,7 +81,6 @@ async def timetable_api(
 
     if not course and not courses and not modules and not locations:
         raise ValueError("No courses, modules or locations provided.")
-    # TODO: remove this format and have proper allowed values
     elif format_ is models.ResponseFormat.UNKNOWN:
         raise ValueError(f"Invalid format '{format_}'.")
 
@@ -109,7 +102,9 @@ async def timetable_api(
     for group, cat_codes in codes.items():
         for code in cat_codes:
             # code is a category item identity and timetable is cached
-            timetable = await api.get_category_item_timetable(code, start=start_date, end=end_date)
+            timetable = await api.get_category_item_timetable(
+                group.value, code, start=start_date, end=end_date
+            )
             if timetable:
                 events.extend(timetable.events)
                 logger.info(
@@ -120,7 +115,7 @@ async def timetable_api(
             # code is a category item identity and timetable must be fetched
             item = await api.get_category_item(group, code)
             if item:
-                timetables = await api.fetch_category_timetables(
+                timetables = await api.fetch_category_items_timetables(
                     group,
                     [item.identity],
                     start=start_date,
@@ -139,11 +134,13 @@ async def timetable_api(
                 category = await api.fetch_category(group, query=code)
                 if not category.items:
                     raise ValueError(f"Invalid code/identity: {code}")
-            
+
             item = category.items[0]
 
             # timetable is cached
-            timetable = await api.get_category_item_timetable(item.identity, start=start_date, end=end_date)
+            timetable = await api.get_category_item_timetable(
+                group.value, item.identity, start=start_date, end=end_date
+            )
             if timetable:
                 events.extend(timetable.events)
                 logger.info(
@@ -152,7 +149,7 @@ async def timetable_api(
                 continue
 
             # timetable is not cached
-            timetables = await api.fetch_category_timetables(
+            timetables = await api.fetch_category_items_timetables(
                 group,
                 [item.identity],
                 start=start_date,
@@ -176,5 +173,6 @@ async def timetable_api(
             data=timetable,
         ),
     )
+
 
 # TODO: add error handler

@@ -11,7 +11,7 @@ import typing
 import icalendar
 import orjson
 
-from timetable import models, __version__
+from timetable import __version__, models
 from timetable.types import is_str_list
 
 if typing.TYPE_CHECKING:
@@ -47,10 +47,10 @@ def parse_weeks(weeks: str) -> list[int]:
     return final
 
 
-def year_start_end_dates() -> tuple[datetime.datetime, datetime.datetime]:
+def default_year_start_end_dates() -> tuple[datetime.datetime, datetime.datetime]:
     """Get default start and end dates for the academic year.
 
-    * Default start date: Sept 1
+    * Default start date: Aug 1
     * Default end date: May 1
 
     Returns
@@ -59,11 +59,33 @@ def year_start_end_dates() -> tuple[datetime.datetime, datetime.datetime]:
         The start and end dates.
     """
     now = datetime.datetime.now(datetime.timezone.utc)
-    start_year = now.year if now.month >= 9 else now.year - 1
-    end_year = now.year + 1 if now.month >= 9 else now.year
-    start = datetime.datetime(start_year, 9, 1, tzinfo=datetime.timezone.utc)
+    start_year = now.year if now.month >= 8 else now.year - 1
+    end_year = now.year + 1 if now.month >= 8 else now.year
+    start = datetime.datetime(start_year, 8, 1, tzinfo=datetime.timezone.utc)
     end = datetime.datetime(end_year, 5, 1, tzinfo=datetime.timezone.utc)
     return (start, end)
+
+
+def calc_start_end_range(
+    start: datetime.datetime | None = None, end: datetime.datetime | None = None
+) -> tuple[datetime.datetime, datetime.datetime]:
+    start_default, end_default = default_year_start_end_dates()
+    start = (start or start_default).astimezone(datetime.UTC)
+    end = (end or end_default).astimezone(datetime.UTC)
+
+    # TODO: is this warning necessary?
+    if not (start_default <= start <= end_default) or not (
+        start_default <= end <= end_default
+    ):
+        logger.warning(
+            f"{start} and {end} datetimes not within the current academic year range"
+        )
+
+    # TODO: set end to start + 1 week if end before start
+    if start > end:
+        raise ValueError("Start date/time cannot be later than end date/time")
+
+    return start, end
 
 
 @dataclasses.dataclass
@@ -95,6 +117,7 @@ async def get_basic_category_results(api: api_.API) -> Categories:
 
         results[category] = result
 
+    # TODO: use identity here instead of code, requires updating the frontend
     return Categories(
         courses=[
             Category(name=c.name, code=c.code)
@@ -149,6 +172,7 @@ def title_case(text: str):
     return do_title_case(text)
 
 
+# TODO: rework this to be an optional attribute of the `Event` class
 @dataclasses.dataclass
 class EventDisplayData:
     """Display data for events."""
@@ -185,7 +209,7 @@ class EventDisplayData:
         if event.description and event.description.lower().strip() == "lab":
             activity = "Lab"
         elif event.parsed_name_data:
-            activity = event.parsed_name_data[0].activity_type.display()
+            activity = event.parsed_name_data[0].activity_type.display
         else:
             activity = None
 
@@ -251,12 +275,16 @@ class EventDisplayData:
         # DESCRIPTION
 
         event_type = (
-            data[0].delivery_type.display()
+            data[0].delivery_type.display
             if (data := event.parsed_name_data)
             else event.event_type
         )
         if event_type.lower().strip() == "booking":
-            description = f"{event.description}, {event_type}" if event.description else event_type
+            description = (
+                f"{event.description}, {event_type}"
+                if event.description
+                else event_type
+            )
         else:
             description = f"{activity}, {event_type}" if activity else event_type
 
@@ -275,7 +303,9 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
 
     calendar = icalendar.Calendar()
     calendar.add("METHOD", "PUBLISH")
-    calendar.add("PRODID", f"-//timetable.redbrick.dcu.ie//TimetableSync {__version__}//EN")
+    calendar.add(
+        "PRODID", f"-//timetable.redbrick.dcu.ie//TimetableSync {__version__}//EN"
+    )
     calendar.add("VERSION", __version__)
 
     for item in display_data:

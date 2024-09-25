@@ -102,8 +102,7 @@ class CategoryType(enum.Enum):
 class DisplayEnum(enum.Enum):
     """Enum with method for displaying the value in a proper format."""
 
-    # TODO: make this a property
-    # @property
+    @property
     def display(self) -> str:
         """Proper format for enum value."""
         return self.name.replace("_", " ").title()
@@ -130,6 +129,7 @@ class DeliveryType(DisplayEnum):
     SYNCHRONOUS = "SY"
     """Synchronous (online, live)."""
 
+    @property
     def display(self) -> str:
         return DELIVERY_TYPES[self]
 
@@ -200,7 +200,7 @@ class CategoryItem(ModelBase):
     In the cases of description being `None`, `CategoryItem.name` should be used.
     ### Examples
     - Courses: `"BSc in Computer Science"`
-    - Modules: `"Computing Programming I"` / `None`
+    - Modules: `"Computer Programming I"` / `None`
     - Locations: `"Tiered Lecture Theatre"`
     """
     category_type: CategoryType
@@ -215,7 +215,7 @@ class CategoryItem(ModelBase):
     - For locations, this is the location's code, which can be parsed by `Location.from_str`
     ### Examples:
     - Courses: `"COMSCI1"`
-    - Modules: `"CA116[1] Computing Programming I"`
+    - Modules: `"CSC1003[1] Computer Programming I"`
     - Locations: `"GLA.C117 & C122"`
     """
     code: str
@@ -223,7 +223,7 @@ class CategoryItem(ModelBase):
     If this is for a location, it may contain multiple codes separated by a space.
     ### Examples:
     - Courses: `"COMSCI1"`
-    - Modules: `"CA116"`
+    - Modules: `"CSC1003[1]"`
     - Locations: `"GLA.C117 GLA.C122"`
     """
 
@@ -236,10 +236,7 @@ class CategoryItem(ModelBase):
             locations = Location.from_str(name)
             code = " ".join([str(loc) for loc in locations])
         else:
-            # TODO: should the semester really be removed, because some modules are done
-            # on both semesters separately
             code = name.split(" ")[0]
-            code = re.sub(utils.SEMESTER_CODE, "", code)
 
         return cls(
             description=payload["Description"].strip() or None,
@@ -265,7 +262,7 @@ class CategoryItemTimetable(ModelBase):
     - For locations, this is the location code.
     ### Examples
     - Courses: `"COMSCI1"`
-    - Modules: `"CA116[1] Computing Programming I"`
+    - Modules: `"CSC1003[1] Computer Programming I"`
     - Locations: `"GLA.L129"`
     """
     events: list[Event]
@@ -309,8 +306,8 @@ class Event(ModelBase):
     name: str
     """The name of the event.
     
-    If this is in the form `MODULE[SEMESTER]EVENT/ACTIVITY/GROUP` (e.g. `"CA116[1]OC/L1/01"`),
-    then `parsed_name_data` will be available.
+    If this is in the form `MODULE[SEMESTER]EVENT/ACTIVITY/GROUP` (e.g. `"CSC1003[1]OC/L1/01"`),
+    then `Event.parsed_name_data` will be available.
     """
     event_type: str
     """The activity type, almost always `"On Campus"`, `"Synchronous (Online, live)"`,
@@ -321,7 +318,7 @@ class Event(ModelBase):
     module_name: str | None
     """The full module name.
     ### Example
-    CA116[1] Computing Programming I
+    CSC1003[1] Computer Programming I
     """
     staff_member: str | None
     """The event's staff member's name.
@@ -427,7 +424,7 @@ class ParsedNameData(ModelBase):
                 module for module in match.group("modules").split("/") if module.strip()
             ]
             semester = Semester(int(match.group("semester")))
-            
+
             if (dt := match.group("delivery")) == "0C":
                 dt = "OC"
             elif dt == "AS":
