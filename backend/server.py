@@ -84,7 +84,6 @@ async def timetable_api(
     elif format_ is models.ResponseFormat.UNKNOWN:
         raise ValueError(f"Invalid format '{format_}'.")
 
-    events: list[models.Event] = []
     codes: dict[models.CategoryType, list[str]] = collections.defaultdict(list)
 
     def str_to_list(text: str) -> list[str]:
@@ -99,66 +98,12 @@ async def timetable_api(
     if locations:
         codes[models.CategoryType.LOCATIONS].extend(str_to_list(locations))
 
-    for group, cat_codes in codes.items():
-        for code in cat_codes:
-            # code is a category item identity and timetable is cached
-            timetable = await api.get_category_item_timetable(
-                group.value, code, start=start_date, end=end_date
-            )
-            if timetable:
-                events.extend(timetable.events)
-                logger.info(
-                    f"Using cached events for {group} {timetable.identity} (total {len(timetable.events)})"
-                )
-                continue
-
-            # code is a category item identity and timetable must be fetched
-            item = await api.get_category_item(group, code)
-            if item:
-                timetables = await api.fetch_category_items_timetables(
-                    group,
-                    [item.identity],
-                    start=start_date,
-                    end=end_date,
-                )
-                events.extend(timetables[0].events)
-                logger.info(
-                    f"Fetched events for {group} {timetables[0].identity} (total {len(timetables[0].events)})"
-                )
-                continue
-
-            # code is not a category item, search cached category items for it
-            category = await api.get_category(group, query=code, count=1)
-            if not category or not category.items:
-                # could not find category item in cache, fetch it
-                category = await api.fetch_category(group, query=code)
-                if not category.items:
-                    raise ValueError(f"Invalid code/identity: {code}")
-
-            item = category.items[0]
-
-            # timetable is cached
-            timetable = await api.get_category_item_timetable(
-                group.value, item.identity, start=start_date, end=end_date
-            )
-            if timetable:
-                events.extend(timetable.events)
-                logger.info(
-                    f"Using cached events for {group} {timetable.identity} (total {len(timetable.events)})"
-                )
-                continue
-
-            # timetable is not cached
-            timetables = await api.fetch_category_items_timetables(
-                group,
-                [item.identity],
-                start=start_date,
-                end=end_date,
-            )
-            logger.info(
-                f"Fetched events for {group} {timetables[0].identity} (total {len(timetables[0].events)})"
-            )
-            events.extend(timetables[0].events)
+    items = await utils.resolve_to_identities(codes, api)
+    identities = {
+        group: [item.identity for item in group_items]
+        for group, group_items in items.items()
+    }
+    events = await utils.gather_events(identities, start_date, end_date, api)
 
     if format_ is models.ResponseFormat.ICAL:
         timetable = utils.generate_ical_file(events)

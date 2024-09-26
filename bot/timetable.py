@@ -1,4 +1,5 @@
 import datetime
+import enum
 import itertools
 
 import arc
@@ -6,20 +7,18 @@ import hikari
 import human_readable
 import parsedatetime
 
+from bot import autocomplete
 from timetable import api as api_
 from timetable import models, utils
-
-from bot import autocomplete
 
 plugin = arc.GatewayPlugin("timetable")
 
 
-PARSE_RESULT: dict[int, str] = {
-    0: "none",
-    1: "date",
-    2: "time",
-    3: "datetime",
-}
+class TimePeriod(enum.Enum):
+    NONE = 0
+    DATE = 1
+    TIME = 2
+    DATETIME = 3
 
 
 @plugin.inject_dependencies
@@ -32,12 +31,12 @@ def str_to_datetime(
     if isinstance(result, parsedatetime.pdtContext):
         result = result.dateTimeFlag
 
-    time_period = PARSE_RESULT[result]
+    time_period = TimePeriod(result)
 
-    if time_period == "none":
+    if time_period is TimePeriod.NONE:
         return None
 
-    if time_period == "date":
+    if time_period is TimePeriod.DATE:
         name = time.strftime("%A %d %b")
         time = time.replace(hour=0, minute=0, second=0, microsecond=0)
         if include_day:
@@ -69,18 +68,27 @@ async def datetime_autocomplete(
 
 @plugin.include
 @arc.slash_command("timetable", "description")
-async def plugin_cmd(
+async def timetable_cmd(
     ctx: arc.GatewayContext,
     course: arc.Option[
         str | None,
         arc.StrParams(
-            "The course to fetch a timetable for.", autocomplete_with=autocomplete.search_categories
+            "The course to fetch a timetable for.",
+            autocomplete_with=autocomplete.search_categories,
         ),
     ] = None,
     module: arc.Option[
         str | None,
         arc.StrParams(
-            "The module to fetch a timetable for.", autocomplete_with=autocomplete.search_categories
+            "The module to fetch a timetable for.",
+            autocomplete_with=autocomplete.search_categories,
+        ),
+    ] = None,
+    location: arc.Option[
+        str | None,
+        arc.StrParams(
+            "The location to fetch a timetable for.",
+            autocomplete_with=autocomplete.search_categories,
         ),
     ] = None,
     start: arc.Option[
@@ -99,7 +107,9 @@ async def plugin_cmd(
     range_: arc.Option[
         str | None,
         arc.StrParams(
-            "The time range of events to fetch (default 'day').", name="range", choices=["day", "week"],
+            "The time range of events to fetch (default 'day').",
+            name="range",
+            choices=["day", "week"],
         ),
     ] = None,
     api: api_.API = arc.inject(),
@@ -125,7 +135,11 @@ async def plugin_cmd(
         except ValueError:
             date = str_to_datetime(end, include_day=True)
             end_date = date[1] if date else None
-    elif range_ and range_ == "week":
+    elif start and range_ and range_ == "week":
+        end_date = start_date + datetime.timedelta(weeks=1)
+    elif not start and range_ and range_ == "week":
+        now = datetime.datetime.now(datetime.timezone.utc)
+        start_date = datetime.datetime(now.year, now.month, now.day - now.weekday())
         end_date = start_date + datetime.timedelta(weeks=1)
     else:
         end_date = start_date + datetime.timedelta(days=1)
@@ -141,18 +155,20 @@ async def plugin_cmd(
         )
         return
 
-    events: list[utils.EventDisplayData] = []
-
-    if course:
-        course_events = await api.gather_events_for_courses(
-            [course], start_date, end_date
-        )
-        events.extend(utils.EventDisplayData.from_events(course_events))
-    if module:
-        module_events = await api.gather_events_for_modules(
-            [module], start_date, end_date
-        )
-        events.extend(utils.EventDisplayData.from_events(module_events))
+    items = await utils.resolve_to_identities(
+        {
+            models.CategoryType.PROGRAMMES_OF_STUDY: [course] if course else [],
+            models.CategoryType.MODULES: [module] if module else [],
+            models.CategoryType.LOCATIONS: [location] if location else [],
+        },
+        api,
+    )
+    identities = {
+        group: [item.identity for item in group_items]
+        for group, group_items in items.items()
+    }
+    events = await utils.gather_events(identities, start_date, end_date, api)
+    display_events = utils.EventDisplayData.from_events(events)
 
     if not events:
         await ctx.respond(
@@ -160,11 +176,30 @@ async def plugin_cmd(
         )
         return
 
-    await ctx.respond(embed=format_events(events))
+    await ctx.respond(embed=format_events(items, display_events))
 
 
-def format_events(events: list[utils.EventDisplayData]) -> hikari.Embed:
-    embed = hikari.Embed()
+def format_events(
+    items: dict[models.CategoryType, list[models.CategoryItem]],
+    events: list[utils.EventDisplayData],
+) -> hikari.Embed:
+    descriptions = {
+        group: [item.name for item in group_items]
+        for group, group_items in items.items()
+    }
+    descriptions_list: list[str] = []
+    # TODO: add display property for CategoryType
+    for group, title in (
+        (models.CategoryType.PROGRAMMES_OF_STUDY, "Courses"),
+        (models.CategoryType.MODULES, "Modules"),
+        (models.CategoryType.LOCATIONS, "Locations"),
+    ):
+        if group in descriptions and descriptions[group]:
+            descriptions_list.append(
+                f"**{title}:** {", ".join(descriptions[group])}",
+            )
+
+    embed = hikari.Embed(description="\n".join(descriptions_list))
 
     for date, events_ in itertools.groupby(
         sorted(events, key=lambda e: e.original_event.start),
@@ -172,7 +207,7 @@ def format_events(events: list[utils.EventDisplayData]) -> hikari.Embed:
     ):
         formatted_events = [
             (
-                f"> {e.summary}\n> 🕑 <t:{int(e.original_event.start.timestamp())}:t>"
+                f"> {e.summary_long}\n> 🕑 <t:{int(e.original_event.start.timestamp())}:t>"
                 f"-<t:{int(e.original_event.end.timestamp())}:t> 📍 {e.location}"
             )
             for e in sorted(events_, key=lambda e: e.original_event.start)
