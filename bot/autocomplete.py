@@ -10,7 +10,6 @@ CATEGORY_TYPES: dict[str, models.CategoryType] = {
 }
 
 
-# TODO: technically this file isn't required unless other plugins need it
 async def search_categories(
     data: arc.AutocompleteData[arc.GatewayClient, str],
 ) -> dict[str, str]:

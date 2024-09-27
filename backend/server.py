@@ -98,7 +98,7 @@ async def timetable_api(
     if locations:
         codes[models.CategoryType.LOCATIONS].extend(str_to_list(locations))
 
-    items = await utils.resolve_to_identities(codes, api)
+    items = await utils.resolve_to_category_items(codes, api)
     identities = {
         group: [item.identity for item in group_items]
         for group, group_items in items.items()

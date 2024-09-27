@@ -14,7 +14,8 @@ plugin = arc.GatewayPlugin("Preferences")
 
 
 class InteractionType(enum.Enum):
-    COURSE_UPDATE = "cu"
+    COURSE_SET = "cs"
+    COURSE_REMOVE = "cr"
     MODULE_ADD = "ma"
     MODULE_REMOVE = "mr"
 
@@ -32,31 +33,42 @@ async def build_response(
         )
 
     view = miru.View()
-    # TODO: disable the add module button when max modules reached (12?)
-    # TODO: add remove course button
+
     view.add_item(
         miru.Button(
-            label="Update Course",
-            custom_id=f"{InteractionType.COURSE_UPDATE.value}-{user_id}",
+            label="Set Course",
+            custom_id=f"{InteractionType.COURSE_SET.value}-{user_id}",
         )
-    ).add_item(
+    )
+
+    if course:
+        view.add_item(
+            miru.Button(
+                label="Remove Course",
+                style=hikari.ButtonStyle.DANGER,
+                custom_id=f"{InteractionType.COURSE_REMOVE.value}-{user_id}",
+            )
+        )
+    
+    view.add_item(
         miru.Button(
             label="Add Module",
             custom_id=f"{InteractionType.MODULE_ADD.value}-{user_id}",
+            disabled=len(modules) >= 12
         )
     )
 
     embed_description: list[str] = []
 
     if course:
-        results = await utils.resolve_to_identities(
+        results = await utils.resolve_to_category_items(
             {models.CategoryType.PROGRAMMES_OF_STUDY: [course["course_id"]]}, api
         )
         item = results[models.CategoryType.PROGRAMMES_OF_STUDY][0]
         embed_description.append(f"**Course:** {item.name}")
 
     if modules:
-        results = await utils.resolve_to_identities(
+        results = await utils.resolve_to_category_items(
             {models.CategoryType.MODULES: [record["module_id"] for record in modules]},
             api,
         )
@@ -83,7 +95,7 @@ async def build_response(
 
     return embed, view
 
-
+# TODO: add error handler for invalid codes
 @plugin.include
 @arc.slash_command("preferences", "Edit your preferences for the /timetable command.")
 async def set_course(
@@ -124,14 +136,14 @@ async def on_interaction(
     update_response: bool = False
 
     if isinstance(inter, hikari.ComponentInteraction):
-        if type_ is InteractionType.COURSE_UPDATE and inter.component_type:
+        if type_ is InteractionType.COURSE_SET:
             modal = miru.Modal(
-                title="Course Update",
-                custom_id=f"{InteractionType.COURSE_UPDATE.value}-{inter.user.id}",
+                title="Set Course",
+                custom_id=f"{InteractionType.COURSE_SET.value}-{inter.user.id}",
             )
             modal.add_item(
                 miru.TextInput(
-                    label="New course code",
+                    label="Course code",
                     placeholder="e.g. COMSCI1",
                     required=True,
                     custom_id="course-value",
@@ -142,15 +154,24 @@ async def on_interaction(
                 modal.custom_id,
                 components=modal,
             )
+        
+        elif type_ is InteractionType.COURSE_REMOVE:
+            async with db.acquire() as conn:
+                await conn.execute(
+                    "DELETE FROM default_courses WHERE user_id = $1",
+                    inter.user.id,
+                )
 
-        elif type_ is InteractionType.MODULE_ADD and inter.component_type:
+            update_response = True
+
+        elif type_ is InteractionType.MODULE_ADD:
             modal = miru.Modal(
                 title="Add Module",
                 custom_id=f"{InteractionType.MODULE_ADD.value}-{inter.user.id}",
             )
             modal.add_item(
                 miru.TextInput(
-                    label="New module",
+                    label="Module code",
                     placeholder="e.g. CSC1003",
                     required=True,
                     custom_id="module-value",
@@ -162,7 +183,7 @@ async def on_interaction(
                 components=modal,
             )
 
-        elif type_ is InteractionType.MODULE_REMOVE and inter.component_type:
+        elif type_ is InteractionType.MODULE_REMOVE:
             async with db.acquire() as conn:
                 await conn.executemany(
                     "DELETE FROM default_modules WHERE user_id = $1 AND module_id = $2",
@@ -173,8 +194,8 @@ async def on_interaction(
     else:
         value = inter.components[0].components[0].value
 
-        if type_ is InteractionType.COURSE_UPDATE:
-            results = await utils.resolve_to_identities(
+        if type_ is InteractionType.COURSE_SET:
+            results = await utils.resolve_to_category_items(
                 {models.CategoryType.PROGRAMMES_OF_STUDY: [value]}, api
             )
             item = results[models.CategoryType.PROGRAMMES_OF_STUDY][0]
@@ -189,7 +210,7 @@ async def on_interaction(
             update_response = True
 
         elif type_ is InteractionType.MODULE_ADD:
-            results = await utils.resolve_to_identities(
+            results = await utils.resolve_to_category_items(
                 {models.CategoryType.MODULES: [value]}, api
             )
             item = results[models.CategoryType.MODULES][0]

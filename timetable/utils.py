@@ -134,8 +134,7 @@ async def get_basic_category_results(api: api_.API) -> Categories:
     )
 
 
-# TODO: rename to resolve_to_category_items
-async def resolve_to_identities(
+async def resolve_to_category_items(
     original_codes: dict[models.CategoryType, list[str]],
     api: api_.API,
 ) -> dict[models.CategoryType, list[models.CategoryItem]]:
@@ -157,7 +156,7 @@ async def resolve_to_identities(
                 # could not find category item in cache, fetch it
                 category = await api.fetch_category(group, query=code)
                 if not category.items:
-                    raise ValueError(f"Invalid code/identity: {code}")
+                    raise models.InvalidCodeError(code)
 
             item = category.items[0]
             codes[group].append(item)

@@ -12,5 +12,4 @@ RUN pip install -r bot/requirements.txt -r timetable/requirements.txt
 COPY bot bot
 COPY timetable timetable
 
-# TODO: add optimization flags
-CMD [ "python3", "-m", "bot" ]
+CMD [ "python3", "-OOm", "bot" ]

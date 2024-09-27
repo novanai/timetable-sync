@@ -167,7 +167,7 @@ async def timetable_cmd(
                 "SELECT module_id FROM default_modules WHERE user_id = $1", ctx.user.id
             )
 
-        items = await utils.resolve_to_identities(
+        items = await utils.resolve_to_category_items(
             {
                 models.CategoryType.PROGRAMMES_OF_STUDY: [course_record["course_id"]] if course_record else [],
                 models.CategoryType.MODULES: [m["module_id"] for m in modules_record],
@@ -175,7 +175,7 @@ async def timetable_cmd(
             api,
         )
     else:
-        items = await utils.resolve_to_identities(
+        items = await utils.resolve_to_category_items(
             {
                 models.CategoryType.PROGRAMMES_OF_STUDY: [course] if course else [],
                 models.CategoryType.MODULES: [module] if module else [],
