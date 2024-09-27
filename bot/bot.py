@@ -22,8 +22,7 @@ client.set_type_dependency(
     miru.Client, miru.Client.from_arc(client, ignore_unknown_interactions=True)
 )
 
-client.load_extension("bot.timetable")
-client.load_extension("bot.preferences")
+client.load_extensions_from("bot/extensions")
 
 
 @client.add_startup_hook
