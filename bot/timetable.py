@@ -188,7 +188,7 @@ def format_events(
         for group, group_items in items.items()
     }
     descriptions_list: list[str] = []
-    # TODO: add display property for CategoryType
+    # TODO: add display property for CategoryType and __iter__ method
     for group, title in (
         (models.CategoryType.PROGRAMMES_OF_STUDY, "Courses"),
         (models.CategoryType.MODULES, "Modules"),

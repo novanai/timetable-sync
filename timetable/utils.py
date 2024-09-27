@@ -134,6 +134,7 @@ async def get_basic_category_results(api: api_.API) -> Categories:
     )
 
 
+# TODO: rename to resolve_to_category_items
 async def resolve_to_identities(
     original_codes: dict[models.CategoryType, list[str]],
     api: api_.API,

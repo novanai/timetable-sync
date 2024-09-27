@@ -5,5 +5,6 @@ CREATE TABLE IF NOT EXISTS default_courses (
 
 CREATE TABLE IF NOT EXISTS default_modules (
     user_id BIGINT,
-    module_id TEXT
+    module_id TEXT,
+    PRIMARY KEY (user_id, module_id)
 );
