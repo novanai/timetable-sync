@@ -9,6 +9,7 @@ import parsedatetime
 
 from bot import autocomplete
 from timetable import api as api_
+from bot.database import Database
 from timetable import models, utils
 
 plugin = arc.GatewayPlugin("timetable")
@@ -113,6 +114,7 @@ async def timetable_cmd(
         ),
     ] = None,
     api: api_.API = arc.inject(),
+    db: Database = arc.inject()
 ) -> None:
     if start:
         try:
@@ -142,6 +144,7 @@ async def timetable_cmd(
         start_date = datetime.datetime(now.year, now.month, now.day - now.weekday())
         end_date = start_date + datetime.timedelta(weeks=1)
     else:
+        range_ = "day"
         end_date = start_date + datetime.timedelta(days=1)
 
     if end_date is None:
@@ -155,24 +158,49 @@ async def timetable_cmd(
         )
         return
 
-    items = await utils.resolve_to_identities(
-        {
-            models.CategoryType.PROGRAMMES_OF_STUDY: [course] if course else [],
-            models.CategoryType.MODULES: [module] if module else [],
-            models.CategoryType.LOCATIONS: [location] if location else [],
-        },
-        api,
-    )
+    if not (course or module or location):
+        async with db.acquire() as conn:
+            course_record = await conn.fetchrow(
+                "SELECT course_id FROM default_courses WHERE user_id = $1", ctx.user.id
+            )
+            modules_record = await conn.fetch(
+                "SELECT module_id FROM default_modules WHERE user_id = $1", ctx.user.id
+            )
+
+        items = await utils.resolve_to_identities(
+            {
+                models.CategoryType.PROGRAMMES_OF_STUDY: [course_record["course_id"]] if course_record else [],
+                models.CategoryType.MODULES: [m["module_id"] for m in modules_record],
+            },
+            api,
+        )
+    else:
+        items = await utils.resolve_to_identities(
+            {
+                models.CategoryType.PROGRAMMES_OF_STUDY: [course] if course else [],
+                models.CategoryType.MODULES: [module] if module else [],
+                models.CategoryType.LOCATIONS: [location] if location else [],
+            },
+            api,
+        )
+
     identities = {
         group: [item.identity for item in group_items]
         for group, group_items in items.items()
     }
+
     events = await utils.gather_events(identities, start_date, end_date, api)
     display_events = utils.EventDisplayData.from_events(events)
 
     if not events:
+        if range_ == "week" or range_ is None:
+            range_text = f"<t:{int(start_date.timestamp())}:D> to <t:{int(end_date.timestamp())}:D>"
+        else:
+            assert range_ == "day"
+            range_text = f"<t:{int(start_date.timestamp())}:D>"
+
         await ctx.respond(
-            "No events for this time period.", flags=hikari.MessageFlag.EPHEMERAL
+            f"No events for {range_text}.", flags=hikari.MessageFlag.EPHEMERAL
         )
         return
 
