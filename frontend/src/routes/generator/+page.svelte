@@ -21,7 +21,7 @@
             name: "Locations",
             selected: [],
             data: data.locations,
-            max: 8
+            max: 8,
         },
     };
 </script>

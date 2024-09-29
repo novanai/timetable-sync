@@ -17,6 +17,7 @@ from timetable.types import is_str_list
 if typing.TYPE_CHECKING:
     from timetable import api as api_
 
+
 logger = logging.getLogger(__name__)
 
 ORDER: typing.Final[str] = "BG123456789"
@@ -131,6 +132,72 @@ async def get_basic_category_results(api: api_.API) -> Categories:
             for l in results[models.CategoryType.LOCATIONS].items
         ],
     )
+
+
+async def resolve_to_category_items(
+    original_codes: dict[models.CategoryType, list[str]],
+    api: api_.API,
+) -> dict[models.CategoryType, list[models.CategoryItem]]:
+    codes: dict[models.CategoryType, list[models.CategoryItem]] = (
+        collections.defaultdict(list)
+    )
+
+    for group, cat_codes in original_codes.items():
+        for code in cat_codes:
+            # code is a category item identity and timetable must be fetched
+            item = await api.get_category_item(group, code)
+            if item:
+                codes[group].append(item)
+                continue
+
+            # code is not a category item, search cached category items for it
+            category = await api.get_category(group, query=code, count=1)
+            if not category or not category.items:
+                # could not find category item in cache, fetch it
+                category = await api.fetch_category(group, query=code)
+                if not category.items:
+                    raise models.InvalidCodeError(code)
+
+            item = category.items[0]
+            codes[group].append(item)
+
+    return codes
+
+
+async def gather_events(
+    group_identities: dict[models.CategoryType, list[str]],
+    start_date: datetime.datetime | None,
+    end_date: datetime.datetime | None,
+    api: api_.API,
+) -> list[models.Event]:
+    events: list[models.Event] = []
+
+    for group, identities in group_identities.items():
+        for identity in identities:
+            # timetable is cached
+            timetable = await api.get_category_item_timetable(
+                group.value, identity, start=start_date, end=end_date
+            )
+            if timetable:
+                events.extend(timetable.events)
+                logger.info(
+                    f"Using cached events for {group} {timetable.identity} (total {len(timetable.events)})"
+                )
+                continue
+
+            # timetable needs to be fetched
+            timetables = await api.fetch_category_items_timetables(
+                group,
+                [identity],
+                start=start_date,
+                end=end_date,
+            )
+            events.extend(timetables[0].events)
+            logger.info(
+                f"Fetched events for {group} {timetables[0].identity} (total {len(timetables[0].events)})"
+            )
+
+    return events
 
 
 # Converted to python and modified from
