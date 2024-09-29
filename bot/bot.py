@@ -9,7 +9,7 @@ import parsedatetime
 
 from bot.database import Database
 from timetable import api as api_
-from timetable import utils
+from timetable import models, utils
 
 bot = hikari.GatewayBot(os.environ["BOT_TOKEN"], banner=None)
 client = arc.GatewayClient(bot)
@@ -45,3 +45,20 @@ async def startup_hook(client: arc.GatewayClient, api: api_.API = arc.inject()) 
         Database,
         db,
     )
+
+
+@bot.listen(hikari.ExceptionEvent)
+async def error_handler(event: hikari.ExceptionEvent[hikari.Event]) -> None:
+    if (
+        isinstance(event.failed_event, hikari.InteractionCreateEvent)
+        and isinstance(event.failed_event.interaction, hikari.ModalInteraction)
+        and isinstance(event.exception, models.InvalidCodeError)
+    ):
+        await event.failed_event.interaction.create_initial_response(
+            hikari.ResponseType.MESSAGE_CREATE,
+            "Invalid code.",
+            flags=hikari.MessageFlag.EPHEMERAL,
+        )
+        return
+
+    raise event.exception

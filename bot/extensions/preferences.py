@@ -49,12 +49,12 @@ async def build_response(
                 custom_id=f"{InteractionType.COURSE_REMOVE.value}-{user_id}",
             )
         )
-    
+
     view.add_item(
         miru.Button(
             label="Add Module",
             custom_id=f"{InteractionType.MODULE_ADD.value}-{user_id}",
-            disabled=len(modules) >= 12
+            disabled=len(modules) >= 12,
         )
     )
 
@@ -95,10 +95,10 @@ async def build_response(
 
     return embed, view
 
-# TODO: add error handler for invalid codes
+
 @plugin.include
 @arc.slash_command("preferences", "Edit your preferences for the /timetable command.")
-async def set_course(
+async def set_preferences(
     ctx: arc.GatewayContext,
 ) -> None:
     embed, view = await build_response(ctx.user.id)
@@ -154,7 +154,7 @@ async def on_interaction(
                 modal.custom_id,
                 components=modal,
             )
-        
+
         elif type_ is InteractionType.COURSE_REMOVE:
             async with db.acquire() as conn:
                 await conn.execute(

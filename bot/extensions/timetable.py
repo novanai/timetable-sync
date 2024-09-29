@@ -8,8 +8,8 @@ import human_readable
 import parsedatetime
 
 from bot import autocomplete
-from timetable import api as api_
 from bot.database import Database
+from timetable import api as api_
 from timetable import models, utils
 
 plugin = arc.GatewayPlugin("timetable")
@@ -114,7 +114,7 @@ async def timetable_cmd(
         ),
     ] = None,
     api: api_.API = arc.inject(),
-    db: Database = arc.inject()
+    db: Database = arc.inject(),
 ) -> None:
     if start:
         try:
@@ -169,7 +169,9 @@ async def timetable_cmd(
 
         items = await utils.resolve_to_category_items(
             {
-                models.CategoryType.PROGRAMMES_OF_STUDY: [course_record["course_id"]] if course_record else [],
+                models.CategoryType.PROGRAMMES_OF_STUDY: [course_record["course_id"]]
+                if course_record
+                else [],
                 models.CategoryType.MODULES: [m["module_id"] for m in modules_record],
             },
             api,
