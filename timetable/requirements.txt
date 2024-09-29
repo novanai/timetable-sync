@@ -1,5 +1,5 @@
-aiohttp==3.10.6
-icalendar==5.0.13
+aiohttp==3.10.8
+icalendar==6.0.0
 orjson==3.10.7
 rapidfuzz==3.10.0
-redis[hiredis]==5.0.8
+redis[hiredis]==5.1.0
