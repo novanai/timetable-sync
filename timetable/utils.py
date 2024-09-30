@@ -372,7 +372,8 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
     calendar.add(
         "PRODID", f"-//timetable.redbrick.dcu.ie//TimetableSync {__version__}//EN"
     )
-    calendar.add("VERSION", __version__)
+    calendar.add("VERSION", "2.0")
+    calendar.add("DTSTAMP", datetime.datetime.now(datetime.timezone.utc))
 
     for item in display_data:
         event = icalendar.Event()
@@ -380,6 +381,7 @@ def generate_ical_file(events: list[models.Event]) -> bytes:
         event.add("LAST-MODIFIED", item.original_event.last_modified)
         event.add("DTSTART", item.original_event.start)
         event.add("DTEND", item.original_event.end)
+        event.add("DTSTAMP", item.original_event.last_modified)
         event.add("SUMMARY", item.summary_long)
         event.add(
             "DESCRIPTION",
