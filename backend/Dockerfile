@@ -9,4 +9,4 @@ RUN pip install -r backend/requirements.txt -r timetable/requirements.txt
 COPY backend backend
 COPY timetable timetable
 
-CMD ["python", "-m", "uvicorn", "backend.server:app", "--host=0.0.0.0", "--port=4000", "--no-access-log"]
+CMD ["python", "-m", "uvicorn", "backend.server:app", "--host=0.0.0.0", "--port=2000", "--no-access-log"]
