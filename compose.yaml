@@ -9,7 +9,10 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx:/etc/nginx/conf.d/
+      - ./nginx:/etc/nginx/templates
+    environment:
+      - BACKEND_PORT=${BACKEND_PORT}
+      - FRONTEND_PORT=${FRONTEND_PORT}
 
   backend:
     container_name: backend
@@ -20,9 +23,8 @@ services:
     depends_on:
       - redis
       - cns-api
-    ports:
-      - "2000:2000"
     environment:
+      - BACKEND_PORT=${BACKEND_PORT}
       - REDIS_ADDRESS=${REDIS_ADDRESS}
       - CNS_HOST=${CNS_HOST}
       - CNS_PORT=${CNS_PORT}
@@ -40,8 +42,8 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
-    ports:
-      - "3000:3000"
+    environment:
+      - PORT=${FRONTEND_PORT}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/"]
       interval: 30s
@@ -70,8 +72,6 @@ services:
     container_name: redis
     image: redis:7.4.0
     restart: unless-stopped
-    ports:
-      - "6379:6379"
 
   postgres:
     container_name: postgres
@@ -88,8 +88,6 @@ services:
     container_name: cns-api
     image: ghcr.io/cheeselad/clubsandsocs-api:sha-ceffc767858a58255b36c653ea0df833da278c8e
     restart: unless-stopped
-    ports:
-      - "4000:4000"
 
 volumes:
   db-data:

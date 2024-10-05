@@ -1,9 +1,9 @@
 upstream frontend {
-    server frontend:3000;
+    server frontend:${FRONTEND_PORT};
 }
 
 upstream backend {
-    server backend:2000;
+    server backend:${BACKEND_PORT};
 }
 
 server {
