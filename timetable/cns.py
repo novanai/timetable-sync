@@ -9,7 +9,7 @@ import aiohttp
 import icalendar
 import orjson
 
-from backend import __version__
+from timetable import __version__, utils
 
 
 class GroupType(enum.Enum):
@@ -131,6 +131,13 @@ class API:
         ]
 
         return events + activities
+
+    async def fetch_group(self, group_type: GroupType) -> list[utils.Category]:
+        return [
+            utils.Category(name=d["name"], identity=d["id"])
+            for d in await self.get_data(f"{SITE}/{group_type.value}")
+            if not d["is_locked"]
+        ]
 
 
 def generate_ical_file(events: list[Event | Activity]) -> bytes:

@@ -95,43 +95,16 @@ class Category:
     identity: str
 
 
-@dataclasses.dataclass
-class Categories:
-    courses: list[Category]
-    modules: list[Category]
-    locations: list[Category]
+async def get_basic_category_results(
+    api: api_.API, category_type: models.CategoryType
+) -> list[Category]:
+    result = await api.get_category(category_type)
+    if not result:
+        start = time.time()
+        result = await api.fetch_category(category_type, cache=True)
+        logger.info(f"Cached {category_type} in {time.time()-start:.2f}s")
 
-
-async def get_basic_category_results(api: api_.API) -> Categories:
-    results: dict[models.CategoryType, models.Category] = {}
-
-    for category in (
-        models.CategoryType.PROGRAMMES_OF_STUDY,
-        models.CategoryType.MODULES,
-        models.CategoryType.LOCATIONS,
-    ):
-        result = await api.get_category(category)
-        if not result:
-            start = time.time()
-            result = await api.fetch_category(category, cache=True)
-            logger.info(f"Cached {category} in {time.time()-start:.2f}s")
-
-        results[category] = result
-
-    return Categories(
-        courses=[
-            Category(name=c.name, identity=c.identity)
-            for c in results[models.CategoryType.PROGRAMMES_OF_STUDY].items
-        ],
-        modules=[
-            Category(name=m.name, identity=m.identity)
-            for m in results[models.CategoryType.MODULES].items
-        ],
-        locations=[
-            Category(name=l.name, identity=l.identity)
-            for l in results[models.CategoryType.LOCATIONS].items
-        ],
-    )
+    return [Category(name=c.name, identity=c.identity) for c in result.items]
 
 
 async def resolve_to_category_items(

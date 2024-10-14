@@ -7,9 +7,9 @@ import orjson
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from openapidocs.v3 import Info  # pyright: ignore[reportMissingTypeStubs]
 
-from backend import __version__, api_docs, cns
+from backend import __version__, api_docs
 from timetable import api as api_
-from timetable import models, utils
+from timetable import cns, models, utils
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,12 @@ docs.bind_app(app)
 
 @app.on_start
 async def start_session() -> None:
-    await utils.get_basic_category_results(api)
+    for category_type in (
+        models.CategoryType.PROGRAMMES_OF_STUDY,
+        models.CategoryType.MODULES,
+        models.CategoryType.LOCATIONS,
+    ):
+        await utils.get_basic_category_results(api, category_type)
 
 
 @app.on_stop
@@ -47,24 +52,37 @@ async def healthcheck() -> blacksheep.Response:
     return blacksheep.ok()
 
 
+CATEGORY_TYPES: dict[str, models.CategoryType] = {
+    "course": models.CategoryType.PROGRAMMES_OF_STUDY,
+    "module": models.CategoryType.MODULES,
+    "location": models.CategoryType.LOCATIONS,
+}
+
+
 @docs.ignore()
 @blacksheep.route("/api/all/{category_type}")
 async def all_category_values(
     category_type: str,
 ) -> blacksheep.Response:
-    if category_type not in ("courses", "modules", "locations"):
+    if category_type not in ("course", "module", "location", "club", "society"):
         return blacksheep.status_code(
             400,
             "Invalid value provided.",
         )
 
-    categories = await utils.get_basic_category_results(api)
+    if category_type in CATEGORY_TYPES:
+        categories = await utils.get_basic_category_results(
+            api, CATEGORY_TYPES[category_type]
+        )
+
+    else:
+        categories = await cns_api.fetch_group(cns.GroupType(category_type))
 
     return blacksheep.Response(
         status=200,
         content=blacksheep.Content(
             content_type=b"application/json",
-            data=orjson.dumps(getattr(categories, category_type)),
+            data=orjson.dumps(categories),
         ),
     )
 
