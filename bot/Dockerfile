@@ -2,8 +2,7 @@ FROM python:3.12.6-slim
 
 WORKDIR /app
 
-RUN apt-get update
-RUN apt-get install -y python3-icu
+RUN apt-get update && apt-get install -y python3-icu
 
 COPY bot/requirements.txt bot/requirements.txt
 COPY timetable/requirements.txt timetable/requirements.txt

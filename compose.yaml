@@ -1,7 +1,7 @@
 services:
   nginx:
     container_name: nginx
-    image: nginx:1.27.1-alpine3.20
+    image: nginx:1.27.2
     restart: unless-stopped
     depends_on:
       - backend
@@ -9,7 +9,10 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx:/etc/nginx/conf.d/
+      - ./nginx:/etc/nginx/templates
+    environment:
+      - BACKEND_PORT=${BACKEND_PORT}
+      - FRONTEND_PORT=${FRONTEND_PORT}
 
   backend:
     container_name: backend
@@ -19,10 +22,12 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
-    ports:
-      - "4000:4000"
+      - cns-api
     environment:
+      - BACKEND_PORT=${BACKEND_PORT}
       - REDIS_ADDRESS=${REDIS_ADDRESS}
+      - CNS_HOST=${CNS_HOST}
+      - CNS_PORT=${CNS_PORT}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/api/healthcheck"]
       interval: 30s
@@ -37,12 +42,8 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
-    ports:
-      - "3000:3000"
     environment:
-      - HOST=0.0.0.0
-      - PORT=3000
-
+      - PORT=${FRONTEND_PORT}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/"]
       interval: 30s
@@ -69,10 +70,8 @@ services:
 
   redis:
     container_name: redis
-    image: redis:7.4.0-alpine3.20
+    image: redis:7.4.0
     restart: unless-stopped
-    ports:
-      - "6379:6379"
 
   postgres:
     container_name: postgres
@@ -84,6 +83,13 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
+
+  cns-api:
+    container_name: cns-api
+    image: ghcr.io/cheeselad/clubsandsocs-api:latest
+    restart: unless-stopped
+    environment:
+      - PORT=${CNS_PORT}
 
 volumes:
   db-data:

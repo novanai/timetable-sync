@@ -411,6 +411,8 @@ class ParsedNameData(ModelBase):
 
         # Some error correction
         data = data.replace(" ", "").replace("//", "/").replace("]/", "]")
+        # TODO: sometimes this has catastrophic backtracing resulting in an infinite loop
+        # which crashes the server
         match = EVENT_NAME_REGEX.match(data)
 
         if not match:
@@ -425,7 +427,8 @@ class ParsedNameData(ModelBase):
             ]
             semester = Semester(int(match.group("semester")))
 
-            if (dt := match.group("delivery")) == "0C":
+            dt = match.group("delivery")
+            if dt == "0C":
                 dt = "OC"
             elif dt == "AS":
                 dt = "AY"

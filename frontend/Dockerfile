@@ -11,4 +11,4 @@ COPY frontend .
 
 RUN npm run build
 
-CMD ["node", "build"]
+CMD node build

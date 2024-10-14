@@ -30,7 +30,12 @@ client.load_extensions_from("bot/extensions")
 async def startup_hook(client: arc.GatewayClient, api: api_.API = arc.inject()) -> None:
     # TODO: if both the backend and bot do this at the same time, there's twice the amount
     # of requests to fetch the same amount of data
-    await utils.get_basic_category_results(api)
+    for category_type in (
+        models.CategoryType.PROGRAMMES_OF_STUDY,
+        models.CategoryType.MODULES,
+        models.CategoryType.LOCATIONS,
+    ):
+        await utils.get_basic_category_results(api, category_type)
 
     db = Database(
         host=os.environ["POSTGRES_HOST"],

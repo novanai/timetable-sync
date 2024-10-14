@@ -9,13 +9,14 @@ from openapidocs.v3 import Info  # pyright: ignore[reportMissingTypeStubs]
 
 from backend import __version__, api_docs
 from timetable import api as api_
-from timetable import models, utils
+from timetable import cns, models, utils
 
 logger = logging.getLogger(__name__)
 
 
 app = blacksheep.Application()
 api = api_.API()
+cns_api = cns.API()
 
 docs = OpenAPIHandler(
     info=Info(title="TimetableSync API", version=__version__),
@@ -27,12 +28,22 @@ docs.bind_app(app)
 
 @app.on_start
 async def start_session() -> None:
-    await utils.get_basic_category_results(api)
+    for category_type in (
+        models.CategoryType.PROGRAMMES_OF_STUDY,
+        models.CategoryType.MODULES,
+        models.CategoryType.LOCATIONS,
+    ):
+        await utils.get_basic_category_results(api, category_type)
 
 
 @app.on_stop
 async def stop_session() -> None:
     await api.session.close()
+    await cns_api.session.close()
+
+
+def str_to_list(text: str) -> list[str]:
+    return [t.strip() for t in text.split(",")]
 
 
 @docs.ignore()
@@ -41,24 +52,37 @@ async def healthcheck() -> blacksheep.Response:
     return blacksheep.ok()
 
 
+CATEGORY_TYPES: dict[str, models.CategoryType] = {
+    "course": models.CategoryType.PROGRAMMES_OF_STUDY,
+    "module": models.CategoryType.MODULES,
+    "location": models.CategoryType.LOCATIONS,
+}
+
+
 @docs.ignore()
 @blacksheep.route("/api/all/{category_type}")
 async def all_category_values(
     category_type: str,
 ) -> blacksheep.Response:
-    if category_type not in ("courses", "modules", "locations"):
+    if category_type not in ("course", "module", "location", "club", "society"):
         return blacksheep.status_code(
             400,
             "Invalid value provided.",
         )
 
-    categories = await utils.get_basic_category_results(api)
+    if category_type in CATEGORY_TYPES:
+        categories = await utils.get_basic_category_results(
+            api, CATEGORY_TYPES[category_type]
+        )
+
+    else:
+        categories = await cns_api.fetch_group(cns.GroupType(category_type))
 
     return blacksheep.Response(
         status=200,
         content=blacksheep.Content(
             content_type=b"application/json",
-            data=orjson.dumps(getattr(categories, category_type)),
+            data=orjson.dumps(categories),
         ),
     )
 
@@ -85,9 +109,6 @@ async def timetable_api(
         raise ValueError(f"Invalid format '{format_}'.")
 
     codes: dict[models.CategoryType, list[str]] = collections.defaultdict(list)
-
-    def str_to_list(text: str) -> list[str]:
-        return [t.strip() for t in text.split(",")]
 
     if courses and courses.strip():
         codes[models.CategoryType.PROGRAMMES_OF_STUDY].extend(str_to_list(courses))
@@ -116,6 +137,37 @@ async def timetable_api(
         content=blacksheep.Content(
             format_.content_type.encode(),
             data=timetable,
+        ),
+    )
+
+
+@blacksheep.route("/api/cns")
+async def cns_api_timetable(
+    societies: str | None = None,
+    clubs: str | None = None,
+):
+    if not (societies or clubs):
+        raise ValueError("No societies or clubs provided.")
+
+    society_ids = str_to_list(societies) if societies else []
+    club_ids = str_to_list(clubs) if clubs else []
+
+    events: list[cns.Event | cns.Activity] = []
+
+    for group, ids in (
+        (cns.GroupType.SOCIETY, society_ids),
+        (cns.GroupType.CLUB, club_ids),
+    ):
+        for id_ in ids:
+            events.extend(await cns_api.fetch_group_events_activities(id_, group))
+
+    calendar = cns.generate_ical_file(events)
+
+    return blacksheep.Response(
+        200,
+        content=blacksheep.Content(
+            b"text/calendar",
+            data=calendar,
         ),
     )
 
