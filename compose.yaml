@@ -86,7 +86,7 @@ services:
 
   cns-api:
     container_name: cns-api
-    image: ghcr.io/cheeselad/clubsandsocs-api:sha-ceffc767858a58255b36c653ea0df833da278c8e
+    image: ghcr.io/cheeselad/clubsandsocs-api:latest
     restart: unless-stopped
     environment:
       - PORT=${CNS_PORT}
