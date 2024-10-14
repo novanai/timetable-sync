@@ -72,7 +72,7 @@
 
 <div class="mx-4 md:mx-16 lg:mx-32">
     {#each Object.entries(api_data) as [group, data]}
-        <div class="mb-4 last:mb-0">
+        <div class="mb-16 last:mb-0">
             <div class="text-2xl font-bold mb-2">{data.title}</div>
             <div class="flex flex-row">
                 <div class="overflow-hidden">
