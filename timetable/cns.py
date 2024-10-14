@@ -113,7 +113,7 @@ class API:
 
     async def get_data(self, url: str) -> list[dict[str, typing.Any]]:
         async with self.session.request(
-            "GET", f"http://{os.environ["CNS_HOST"]}:{os.environ["CNS_PORT"]}/{url}"
+            "GET", f"{os.environ["CNS_ADDRESS"]}/{url}"
         ) as r:
             r.raise_for_status()
             return await r.json(loads=orjson.loads)

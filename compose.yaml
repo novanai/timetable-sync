@@ -26,8 +26,7 @@ services:
     environment:
       - BACKEND_PORT=${BACKEND_PORT}
       - REDIS_ADDRESS=${REDIS_ADDRESS}
-      - CNS_HOST=${CNS_HOST}
-      - CNS_PORT=${CNS_PORT}
+      - CNS_ADDRESS=${CNS_ADDRESS}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/api/healthcheck"]
       interval: 30s
@@ -67,6 +66,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_HOST=${POSTGRES_HOST}
       - POSTGRES_PORT=${POSTGRES_PORT}
+      - CNS_ADDRESS=${CNS_ADDRESS}
 
   redis:
     container_name: redis
