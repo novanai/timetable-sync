@@ -68,7 +68,7 @@ async def datetime_autocomplete(
 
 
 @plugin.include
-@arc.slash_command("timetable", "description")
+@arc.slash_command("timetable", "Fetch a timetable.")
 async def timetable_cmd(
     ctx: arc.GatewayContext,
     course: arc.Option[

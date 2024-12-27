@@ -294,7 +294,7 @@ class EventDisplayData:
                     continue
 
                 campus, building = main
-                building = models.BUILDINGS[campus][building]
+                building = models.BUILDINGS[campus].get(building, "[unknown]")
                 campus = models.CAMPUSES[campus]
                 locs = sorted(locs, key=lambda r: r.room)
                 locs = sorted(locs, key=lambda r: ORDER.index(r.floor))
