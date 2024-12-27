@@ -43,6 +43,7 @@ BUILDINGS = {
         "D": "BEA Orpen Building",
         "E": "Estates Office",
         "F": "Multi-Storey Car Park",
+        "FT": "The Polaris Building",
         "G": "NICB Building",
         "GA": "NRF Building",
         "H": "Nursing Building",
@@ -518,9 +519,10 @@ class Location(ModelBase):
         return f"{self.campus}.{self.building}{self.floor}{self.room}"
 
     def pretty_string(self, include_original: bool = False) -> str:
+        building_name = BUILDINGS[self.campus].get(self.building, "[unknown]")
         return (
             f"{self.floor}.{self.room}, "
-            f"{BUILDINGS[self.campus][self.building]} ({self.building}), "
+            f"{building_name} ({self.building}), "
             f"{CAMPUSES[self.campus]} ({self.campus})"
             + (f", ({str(self)})" if include_original else "")
         )
