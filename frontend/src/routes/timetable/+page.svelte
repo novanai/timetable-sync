@@ -12,7 +12,7 @@
     import Svelecte from "svelecte";
     import ColorHash from "color-hash";
 
-    var colorHash = new ColorHash({ lightness: 0.7, saturation: 0.5 });
+    var colorHash = new ColorHash({ lightness: [0.6, 0.7, 0.8], saturation: [0.4, 0.5, 0.6] });
 
     let modal_title = "";
     let modal_content = "";
