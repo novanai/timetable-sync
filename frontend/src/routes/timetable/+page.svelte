@@ -1,6 +1,8 @@
 <script>
     export let data;
 
+    import { goto } from '$app/navigation';
+    import { page } from '$app/stores';
     import { onMount } from "svelte";
     import { Calendar } from "@fullcalendar/core";
     import timeGridPlugin from "@fullcalendar/timegrid";
@@ -15,22 +17,30 @@
     let modal_title = "";
     let modal_content = "";
 
+    function getParamValues(name) {
+        let value = $page.url.searchParams.get(name);
+        if (!value) {
+            return [];
+        }
+        return value.split(",");
+    }
+
     let timetable_data = {
         courses: {
             name: "Courses",
-            selected: [],
+            selected: getParamValues("courses"),
             data: data.courses,
             max: 8,
         },
         modules: {
             name: "Modules",
-            selected: [],
+            selected: getParamValues("modules"),
             data: data.modules,
             max: 20,
         },
         locations: {
             name: "Locations",
-            selected: [],
+            selected: getParamValues("locations"),
             data: data.locations,
             max: 8,
         },
@@ -82,6 +92,7 @@
 
     onMount(async () => {
         initCalendar();
+        await fetchEvents();
 
         return () => {
             calendar && calendar.destroy();
@@ -105,7 +116,22 @@
         return height;
     }
 
+    function updateQueryParam(courses, modules, locations) {
+        let query = new URLSearchParams($page.url.searchParams.toString());
+        query.set("courses", courses.join(","))
+        query.set("modules", modules.join(","))
+        query.set("locations", locations.join(","))
+
+        let queryString = Array.from(query.entries())
+            .map(([key, value]) => `${key}=${value}`)
+            .join('&');
+
+        goto(`?${queryString}`);
+    }
+
     async function fetchEvents(info = null) {
+        updateQueryParam(timetable_data.courses.selected, timetable_data.modules.selected, timetable_data.locations.selected);
+
         let events_data;
         if (
             timetable_data.courses.selected.length == 0 &&
