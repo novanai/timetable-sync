@@ -16,21 +16,24 @@ LOCATION_REGEX = re.compile(
     r"^((?P<campus>[A-Z]{3})\.)?(?P<building>VB|[A-Z][AC-FH-Z]?)(?P<floor>[BG1-9])(?P<room>[0-9\-A-Za-z ()]+)$"
 )
 
+# NOTE: this does not match the full inputs below (it takes only the second module and semester)
+# HIS1013[2]HIS1014[2]L1/01
+# HIS1013[2]HIS1014[2]L2/01
+
 EVENT_NAME_REGEX = re.compile(
-    r"^(?P<modules>([A-Za-z\d]+\/?)+)(\[|\()?(?P<semester>[0-2])(\]|\))?(?P<delivery>OC|0C|AY|AS|SY)\/(?P<activity>(P|L|T|W|S){1,2})\d{0,2}(\/(?P<group>\d+))?(?P<remainder>.*)$"
+    r"(?P<modules>(?:[A-Za-z]+[0-9]+)(?:\/[A-Za-z]+[0-9]+)*)(?:[\[\(]?(?P<semester>(0|1|2|1,2|F))[\]\)]?)(?:(?P<delivery>OC|0C|ASY|AY|AS|SY|HY)\/)?(?P<activity>EX|WS|P|L|T|W|S|E|A)\d{0,2}(?:\/(?P<group>\d+))?"
 )
-r"""
-^
-(?P<modules>([A-Za-z0-9]+\/?)+)           | Alphanumeric module code(s), can be multiple separated by `/`
-(\[|\()?                                  | Semester container opening bracket, can be `[` (most common), `(` (uncommon) or missing (rare)
-(?P<semester>[0-2])                       | Semester, 0 meaning both semesters (occasionally this value is `F` but I don't match for it currently)
-(\]|\))?                                  | Semester container closing bracket, same rules as opening bracket
-(?P<delivery>OC|0C|AY|AS|SY)\/            | Delivery type, `0C` being corrected to `OC` and `AS` being corrected to `AY`
-(?P<activity>(P|L|T|W|S){1,2})[0-9]{0,2}  | Activity type, optionally including a number
-(\/(?P<group>[0-9]+))?                    | Optional group number
-(?P<remainder>.*)                         | Remainder of the event name, occasionally includes another full event name which should be matched for recursively
-$
-"""
+EVENT_NAME_SUBSTITUTIONS: dict[str, str] = {
+    " ": "",
+    "//": "/",
+    "]/": "]",
+    "/]": "/",
+    "[/": "]",
+    "]]": "]",
+    "])": "]",
+    "[[": "[",
+    "}": "",
+}
 
 CAMPUSES = {"AHC": "All Hallows", "GLA": "Glasnevin", "SPC": "St Patrick's"}
 
@@ -129,6 +132,8 @@ class DeliveryType(DisplayEnum):
     """Asynchronous (recorded)."""
     SYNCHRONOUS = "SY"
     """Synchronous (online, live)."""
+    HYBRID = "HY"
+    """Hybrid."""
 
     @property
     def display(self) -> str:
@@ -157,6 +162,10 @@ class ActivityType(DisplayEnum):
     """Seminar."""
     WORKSHOP_SEMINAR = "WS"
     """Workshop seminar."""
+    EXAMINATION = "E"
+    """Examination."""
+    ASSESSMENT = "A"
+    """Assessment."""
 
 
 class ModelBase(abc.ABC):
@@ -392,8 +401,8 @@ class ParsedNameData(ModelBase):
     """
     semester: Semester
     """The semester this event takes place in."""
-    delivery_type: DeliveryType
-    """The delivery type of this event."""
+    delivery_type: DeliveryType | None
+    """The delivery type of this event. May be `None`."""
     activity_type: ActivityType
     """The activity type of this event."""
     group_number: int | None
@@ -411,34 +420,45 @@ class ParsedNameData(ModelBase):
             return []
 
         # Some error correction
-        data = data.replace(" ", "").replace("//", "/").replace("]/", "]")
-        # TODO: sometimes this has catastrophic backtracing resulting in an infinite loop
-        # which crashes the server
-        match = EVENT_NAME_REGEX.match(data)
+        data = data.upper()
+        for original, substitution in EVENT_NAME_SUBSTITUTIONS.items():
+            data = data.replace(original, substitution)
 
-        if not match:
-            return []
+        matches: list[ParsedNameData] = []
 
-        datas: list[ParsedNameData] = []
-        remainder = ""
-
-        while match is not None:
+        for match in EVENT_NAME_REGEX.finditer(data):
             modules = [
                 module for module in match.group("modules").split("/") if module.strip()
             ]
-            semester = Semester(int(match.group("semester")))
+
+            sem = match.group("semester")
+            if sem == "1,2":
+                sem = "0"
+            elif sem == "F":
+                sem = "0"
+            semester = Semester(int(sem))
 
             dt = match.group("delivery")
-            if dt == "0C":
-                dt = "OC"
-            elif dt == "AS":
-                dt = "AY"
-            delivery_type = DeliveryType(dt)
 
-            activity_type = ActivityType(match.group("activity"))
+            if dt is not None:
+                if dt == "0C":
+                    dt = "OC"
+                elif dt == "AS":
+                    dt = "AY"
+                elif dt == "ASY":
+                    dt = "AY"
+                delivery_type = DeliveryType(dt)
+            else:
+                delivery_type = None
+
+            at = match.group("activity")
+            if at == "EX":
+                at = "E"
+            activity_type = ActivityType(at)
+
             group = int(g) if (g := match.group("group")) else None
 
-            datas.append(
+            matches.append(
                 cls(
                     module_codes=modules,
                     semester=semester,
@@ -448,13 +468,10 @@ class ParsedNameData(ModelBase):
                 )
             )
 
-            remainder = match.group("remainder")
-            if "," in remainder[:2]:
-                match = EVENT_NAME_REGEX.match(remainder.split(",")[1])
-            else:
-                match = None
+        if not matches:
+            logger.warning(f"Failed to parse: {data}")
 
-        return datas
+        return matches
 
 
 @dataclasses.dataclass
