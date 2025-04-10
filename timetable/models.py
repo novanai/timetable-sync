@@ -133,7 +133,7 @@ class DeliveryType(DisplayEnum):
     SYNCHRONOUS = "SY"
     """Synchronous (online, live)."""
     HYBRID = "HY"
-    """Hybrid."""
+    """Hybrid (both on-campus and online)."""
 
     @property
     def display(self) -> str:
@@ -144,6 +144,7 @@ DELIVERY_TYPES: dict[DeliveryType, str] = {
     DeliveryType.ON_CAMPUS: "On Campus",
     DeliveryType.ASYNCHRONOUS: "Asynchronous (Recorded)",
     DeliveryType.SYNCHRONOUS: "Synchronous (Online, live)",
+    DeliveryType.HYBRID: "Hybrid"
 }
 
 
