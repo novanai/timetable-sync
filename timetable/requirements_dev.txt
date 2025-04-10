@@ -1,2 +1,2 @@
-types-icalendar==6.1.0.20241128
+types-icalendar==6.1.3.20250403
 types-redis==4.6.0.20241004
