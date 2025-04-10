@@ -1,6 +1,5 @@
 import collections
 import datetime
-import logging
 
 import blacksheep
 import orjson
@@ -10,8 +9,6 @@ from openapidocs.v3 import Info  # pyright: ignore[reportMissingTypeStubs]
 from backend import __version__, api_docs
 from timetable import api as api_
 from timetable import cns, models, utils
-
-logger = logging.getLogger(__name__)
 
 
 app = blacksheep.Application()

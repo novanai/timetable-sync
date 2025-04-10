@@ -1,12 +1,9 @@
 import datetime
-import logging
 import os
 import typing
 
 import orjson
 from redis.asyncio import Redis
-
-logger = logging.getLogger(__name__)
 
 
 class Cache:
@@ -33,8 +30,6 @@ class Cache:
         await self.redis_conn.set(key, orjson.dumps(data))
         await self.redis_conn.expire(key, expires_in)
 
-        logger.info(f"Cached data under {key}")
-
     async def get(self, key: str) -> dict[str, typing.Any] | None:
         """Get data stored under `key` from the cache.
 
@@ -53,7 +48,5 @@ class Cache:
         data = await self.redis_conn.get(key)
         if data is None:
             return None
-
-        logger.info(f"Retrieved data under {key}")
 
         return orjson.loads(data)

@@ -5,7 +5,6 @@ import dataclasses
 import datetime
 import logging
 import re
-import time
 import typing
 
 import icalendar
@@ -100,9 +99,7 @@ async def get_basic_category_results(
 ) -> list[Category]:
     result = await api.get_category(category_type)
     if not result:
-        start = time.time()
         result = await api.fetch_category(category_type, cache=True)
-        logger.info(f"Cached {category_type} in {time.time()-start:.2f}s")
 
     return [Category(name=c.name, identity=c.identity) for c in result.items]
 
@@ -153,9 +150,6 @@ async def gather_events(
             )
             if timetable:
                 events.extend(timetable.events)
-                logger.info(
-                    f"Using cached events for {group} {timetable.identity} (total {len(timetable.events)})"
-                )
                 continue
 
             # timetable needs to be fetched
@@ -166,9 +160,6 @@ async def gather_events(
                 end=end_date,
             )
             events.extend(timetables[0].events)
-            logger.info(
-                f"Fetched events for {group} {timetables[0].identity} (total {len(timetables[0].events)})"
-            )
 
     return events
 
@@ -299,10 +290,10 @@ class EventDisplayData:
                 locs = sorted(locs, key=lambda r: r.room)
                 locs = sorted(locs, key=lambda r: ORDER.index(r.floor))
                 locations_long.append(
-                    f"{', '.join((f"{loc.building}{loc.floor}{loc.room}" for loc in locs))} ({building}, {campus})"
+                    f"{", ".join((f"{loc.building}{loc.floor}{loc.room}" for loc in locs))} ({building}, {campus})"
                 )
                 locations_short.append(
-                    f"{', '.join((f"{loc.building}{loc.floor}{loc.room}" for loc in locs))}"
+                    f"{", ".join((f"{loc.building}{loc.floor}{loc.room}" for loc in locs))}"
                 )
 
             location_long = ", ".join(locations_long)
@@ -315,7 +306,7 @@ class EventDisplayData:
 
         event_type = (
             data[0].delivery_type.display
-            if (data := event.parsed_name_data)
+            if (data := event.parsed_name_data) and data[0].delivery_type is not None
             else event.event_type
         )
         if event_type.lower().strip() == "booking":
