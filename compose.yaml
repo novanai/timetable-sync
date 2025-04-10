@@ -1,7 +1,7 @@
 services:
   nginx:
     container_name: nginx
-    image: nginx:1.27.3
+    image: nginx:1.27.4
     restart: unless-stopped
     depends_on:
       - backend
@@ -70,12 +70,12 @@ services:
 
   redis:
     container_name: redis
-    image: redis:7.4.1
+    image: redis:7.4.2
     restart: unless-stopped
 
   postgres:
     container_name: postgres
-    image: postgres:17.2
+    image: postgres:17.4
     restart: unless-stopped
     volumes:
       - ./db-data:/var/lib/postgresql/data
