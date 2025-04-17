@@ -9,6 +9,9 @@ import aiohttp
 import icalendar
 import orjson
 
+from rapidfuzz import fuzz
+from rapidfuzz import utils as fuzz_utils
+
 from timetable import __version__, utils
 
 
@@ -113,7 +116,7 @@ class API:
 
     async def get_data(self, url: str) -> list[dict[str, typing.Any]]:
         async with self.session.request(
-            "GET", f"{os.environ["CNS_ADDRESS"]}/{url}"
+            "GET", f"{os.environ['CNS_ADDRESS']}/{url}"
         ) as r:
             r.raise_for_status()
             return await r.json(loads=orjson.loads)
@@ -140,6 +143,22 @@ class API:
         ]
 
 
+def filter_category_results(
+    categories: list[utils.Category], query: str
+) -> list[utils.Category]:
+    results: typing.Iterable[tuple[utils.Category, float]] = []
+
+    for item in categories:
+        ratio = fuzz.partial_ratio(
+            query, item.name, processor=fuzz_utils.default_process
+        )
+        results.append((item, ratio))
+
+    results = filter(lambda r: r[1] > 80, results)
+    results = sorted(results, key=lambda r: r[1], reverse=True)
+    return [r[0] for r in results]
+
+
 def generate_ical_file(events: list[Event | Activity]) -> bytes:
     calendar = icalendar.Calendar()
     calendar.add("METHOD", "PUBLISH")
@@ -161,7 +180,7 @@ def generate_ical_file(events: list[Event | Activity]) -> bytes:
             "DESCRIPTION",
             f"Details: {item.description}\n"
             + (
-                f"Cost: {f"€{item.cost:.2f}" if item.cost else "FREE"}"
+                f"Cost: {f'€{item.cost:.2f}' if item.cost else 'FREE'}"
                 if isinstance(item, Event)
                 else ""
             ),

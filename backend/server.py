@@ -59,7 +59,7 @@ CATEGORY_TYPES: dict[str, models.CategoryType] = {
 @docs.ignore()
 @blacksheep.route("/api/all/{category_type}")
 async def all_category_values(
-    category_type: str,
+    category_type: str, query: str | None = None
 ) -> blacksheep.Response:
     if category_type not in ("course", "module", "location", "club", "society"):
         return blacksheep.status_code(
@@ -69,11 +69,13 @@ async def all_category_values(
 
     if category_type in CATEGORY_TYPES:
         categories = await utils.get_basic_category_results(
-            api, CATEGORY_TYPES[category_type]
+            api, CATEGORY_TYPES[category_type], query
         )
 
     else:
         categories = await cns_api.fetch_group(cns.GroupType(category_type))
+        if query:
+            categories = cns.filter_category_results(categories, query)
 
     return blacksheep.Response(
         status=200,
