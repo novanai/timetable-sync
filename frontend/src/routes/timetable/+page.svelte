@@ -67,7 +67,7 @@
                 minute: "numeric",
             },
             allDaySlot: false,
-            weekends: false,
+            weekends: true,
             slotMinTime: "08:00:00",
             slotMaxTime: "19:00:00",
             editable: false,
