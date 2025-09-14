@@ -73,7 +73,7 @@ async def all_category_values(
         )
 
     else:
-        categories = await cns_api.fetch_group(cns.GroupType(category_type))
+        categories = await cns_api.fetch_unlocked_groups(cns.GroupType(category_type))
 
     return blacksheep.Response(
         status=200,
@@ -149,14 +149,17 @@ async def cns_api_timetable(
     society_ids = str_to_list(societies) if societies else []
     club_ids = str_to_list(clubs) if clubs else []
 
-    events: list[cns.Event | cns.Activity] = []
+    events: dict[str, list[cns.Event | cns.Activity]] = collections.defaultdict(list)
 
-    for group, ids in (
+    for group_type, ids in (
         (cns.GroupType.SOCIETY, society_ids),
         (cns.GroupType.CLUB, club_ids),
     ):
         for id_ in ids:
-            events.extend(await cns_api.fetch_group_events_activities(id_, group))
+            group = await cns_api.fetch_group_info(group_type, id_)
+            events[group.name].extend(
+                await cns_api.fetch_group_events_activities(group_type, id_)
+            )
 
     calendar = cns.generate_ical_file(events)
 
