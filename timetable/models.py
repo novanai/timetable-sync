@@ -144,7 +144,7 @@ DELIVERY_TYPES: dict[DeliveryType, str] = {
     DeliveryType.ON_CAMPUS: "On Campus",
     DeliveryType.ASYNCHRONOUS: "Asynchronous (Recorded)",
     DeliveryType.SYNCHRONOUS: "Synchronous (Online, live)",
-    DeliveryType.HYBRID: "Hybrid"
+    DeliveryType.HYBRID: "Hybrid",
 }
 
 
