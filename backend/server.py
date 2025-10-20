@@ -3,6 +3,7 @@ import datetime
 
 import blacksheep
 import orjson
+import logging
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from openapidocs.v3 import Info  # pyright: ignore[reportMissingTypeStubs]
 
@@ -14,6 +15,7 @@ from timetable import cns, models, utils
 app = blacksheep.Application()
 api = api_.API()
 cns_api = cns.API()
+logger = logging.getLogger(__name__)
 
 docs = OpenAPIHandler(
     info=Info(title="TimetableSync API", version=__version__),
@@ -30,6 +32,7 @@ async def start_session() -> None:
         models.CategoryType.MODULES,
         models.CategoryType.LOCATIONS,
     ):
+        logger.info(f"loading {category_type}")
         await utils.get_basic_category_results(api, category_type)
 
 

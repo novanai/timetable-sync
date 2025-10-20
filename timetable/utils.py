@@ -161,7 +161,9 @@ async def gather_events(
                 start=start_date,
                 end=end_date,
             )
-            events.extend(timetables[0].events)
+            # no timetables may be returned
+            if timetables:
+                events.extend(timetables[0].events)
 
     return events
 
