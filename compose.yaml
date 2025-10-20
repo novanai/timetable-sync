@@ -35,8 +35,8 @@ services:
   frontend:
     container_name: frontend
     build:
-      context: .
-      dockerfile: ./frontend/Dockerfile
+      context: ./frontend
+      dockerfile: ./Dockerfile
     restart: unless-stopped
     depends_on:
       - backend
