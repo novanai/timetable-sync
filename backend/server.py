@@ -13,6 +13,14 @@ from timetable import cns, models, utils
 
 
 app = blacksheep.Application()
+# ONLY FOR TESTING, REMOVE BEFORE PROD
+app.use_cors(
+    allow_methods="*",
+    allow_origins="*",
+    allow_headers="* Authorization",
+    max_age=300,
+)
+
 api = api_.API()
 cns_api = cns.API()
 logger = logging.getLogger(__name__)
