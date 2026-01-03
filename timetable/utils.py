@@ -95,11 +95,13 @@ class Category:
 
 
 async def get_basic_category_results(
-    api: api_.API, category_type: models.CategoryType
+    api: api_.API,
+    category_type: models.CategoryType,
+    query: str | None = None,
 ) -> list[Category]:
-    result = await api.get_category(category_type)
+    result = await api.get_category(category_type, query=query)
     if not result:
-        result = await api.fetch_category(category_type, cache=True)
+        result = await api.fetch_category(category_type, query=query, cache=True)
 
     return [Category(name=c.name, identity=c.identity) for c in result.items]
 
@@ -159,7 +161,9 @@ async def gather_events(
                 start=start_date,
                 end=end_date,
             )
-            events.extend(timetables[0].events)
+            # no timetables may be returned
+            if timetables:
+                events.extend(timetables[0].events)
 
     return events
 
@@ -290,10 +294,10 @@ class EventDisplayData:
                 locs = sorted(locs, key=lambda r: r.room)
                 locs = sorted(locs, key=lambda r: ORDER.index(r.floor))
                 locations_long.append(
-                    f"{", ".join((f"{loc.building}{loc.floor}{loc.room}" for loc in locs))} ({building}, {campus})"
+                    f"{', '.join((f'{loc.building}{loc.floor}{loc.room}' for loc in locs))} ({building}, {campus})"
                 )
                 locations_short.append(
-                    f"{", ".join((f"{loc.building}{loc.floor}{loc.room}" for loc in locs))}"
+                    f"{', '.join((f'{loc.building}{loc.floor}{loc.room}' for loc in locs))}"
                 )
 
             location_long = ", ".join(locations_long)

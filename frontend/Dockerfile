@@ -1,14 +1,22 @@
-FROM node:23.11-slim
-
+FROM node:20-alpine AS development-dependencies-env
+COPY . /app
 WORKDIR /app
+RUN npm ci
 
-COPY frontend/package.json .
-COPY frontend/package-lock.json .
+FROM node:20-alpine AS production-dependencies-env
+COPY ./package.json ./package-lock.json /app/
+WORKDIR /app
+RUN npm ci --omit=dev
 
-RUN npm install
-
-COPY frontend .
-
+FROM node:20-alpine AS build-env
+COPY . /app/
+COPY --from=development-dependencies-env /app/node_modules /app/node_modules
+WORKDIR /app
 RUN npm run build
 
-CMD node build
+FROM node:20-alpine
+COPY ./package.json ./package-lock.json /app/
+COPY --from=production-dependencies-env /app/node_modules /app/node_modules
+COPY --from=build-env /app/build /app/build
+WORKDIR /app
+CMD ["npm", "run", "start"]

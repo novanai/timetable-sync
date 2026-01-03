@@ -9,6 +9,9 @@ import aiohttp
 import icalendar
 import orjson
 
+from rapidfuzz import fuzz
+from rapidfuzz import utils as fuzz_utils
+
 from timetable import __version__, utils
 
 
@@ -19,9 +22,6 @@ class GroupType(enum.Enum):
     """A club."""
     SOCIETY = "society"
     """A society."""
-
-
-# TODO: add fixtures
 
 
 @dataclasses.dataclass
@@ -114,7 +114,7 @@ class API:
             self._session = aiohttp.ClientSession()
         return self._session
 
-    async def get_data(self, url: str) -> typing.Any:
+    async def get_data(self, url: str) -> list[dict[str, typing.Any]]:
         async with self.session.request(
             "GET", f"{os.environ['CNS_ADDRESS']}/{url}"
         ) as r:
@@ -122,40 +122,44 @@ class API:
             return await r.json(loads=orjson.loads)
 
     async def fetch_group_events_activities(
-        self,
-        group_type: GroupType,
-        identity: str,
+        self, id: str, group_type: GroupType
     ) -> list[Activity | Event]:
         events = [
             Event.from_payload(d)
-            for d in await self.get_data(f"{SITE}/{group_type.value}/{identity}/events")
+            for d in await self.get_data(f"{SITE}/{group_type.value}/{id}/events")
         ]
         activities = [
             Activity.from_payload(d)
-            for d in await self.get_data(
-                f"{SITE}/{group_type.value}/{identity}/activities"
-            )
+            for d in await self.get_data(f"{SITE}/{group_type.value}/{id}/activities")
         ]
 
         return events + activities
 
-    async def fetch_unlocked_groups(
-        self, group_type: GroupType
-    ) -> list[utils.Category]:
+    async def fetch_group(self, group_type: GroupType) -> list[utils.Category]:
         return [
             utils.Category(name=d["name"], identity=d["id"])
             for d in await self.get_data(f"{SITE}/{group_type.value}")
             if not d["is_locked"]
         ]
 
-    async def fetch_group_info(
-        self, group_type: GroupType, identity: str
-    ) -> utils.Category:
-        d = await self.get_data(f"{SITE}/{group_type.value}/{identity}")
-        return utils.Category(name=d["name"], identity=identity)
+
+def filter_category_results(
+    categories: list[utils.Category], query: str
+) -> list[utils.Category]:
+    results: typing.Iterable[tuple[utils.Category, float]] = []
+
+    for item in categories:
+        ratio = fuzz.partial_ratio(
+            query, item.name, processor=fuzz_utils.default_process
+        )
+        results.append((item, ratio))
+
+    results = filter(lambda r: r[1] > 80, results)
+    results = sorted(results, key=lambda r: r[1], reverse=True)
+    return [r[0] for r in results]
 
 
-def generate_ical_file(events: dict[str, list[Event | Activity]]) -> bytes:
+def generate_ical_file(events: list[Event | Activity]) -> bytes:
     calendar = icalendar.Calendar()
     calendar.add("METHOD", "PUBLISH")
     calendar.add(
@@ -164,26 +168,25 @@ def generate_ical_file(events: dict[str, list[Event | Activity]]) -> bytes:
     calendar.add("VERSION", "2.0")
     calendar.add("DTSTAMP", datetime.datetime.now(datetime.timezone.utc))
 
-    for group_name, group_events in events.items():
-        for item in group_events:
-            event = icalendar.Event()
-            event.add("UID", uuid.uuid4())
-            event.add("LAST-MODIFIED", item.start)
-            event.add("DTSTART", item.start)
-            event.add("DTEND", item.end)
-            event.add("DTSTAMP", item.start)
-            event.add("SUMMARY", f"{item.name} [{group_name}]")
-            event.add(
-                "DESCRIPTION",
-                f"Details: {item.description}\n"
-                + (
-                    f"Cost: {f'€{item.cost:.2f}' if item.cost else 'FREE'}"
-                    if isinstance(item, Event)
-                    else ""
-                ),
-            )
-            event.add("LOCATION", item.location)
-            event.add("CLASS", "PUBLIC")
-            calendar.add_component(event)
+    for item in events:
+        event = icalendar.Event()
+        event.add("UID", uuid.uuid4())
+        event.add("LAST-MODIFIED", item.start)
+        event.add("DTSTART", item.start)
+        event.add("DTEND", item.end)
+        event.add("DTSTAMP", item.start)
+        event.add("SUMMARY", item.name)
+        event.add(
+            "DESCRIPTION",
+            f"Details: {item.description}\n"
+            + (
+                f"Cost: {f'€{item.cost:.2f}' if item.cost else 'FREE'}"
+                if isinstance(item, Event)
+                else ""
+            ),
+        )
+        event.add("LOCATION", item.location)
+        event.add("CLASS", "PUBLIC")
+        calendar.add_component(event)
 
     return calendar.to_ical()

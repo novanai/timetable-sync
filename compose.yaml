@@ -1,7 +1,7 @@
 services:
   nginx:
     container_name: nginx
-    image: nginx:1.27.4
+    image: nginx:1.29.1
     restart: unless-stopped
     depends_on:
       - backend
@@ -20,6 +20,8 @@ services:
       context: .
       dockerfile: ./backend/Dockerfile
     restart: unless-stopped
+    ports:
+      - ${BACKEND_PORT}:${BACKEND_PORT}
     depends_on:
       - redis
       - cns-api
@@ -36,8 +38,8 @@ services:
   frontend:
     container_name: frontend
     build:
-      context: .
-      dockerfile: ./frontend/Dockerfile
+      context: ./frontend
+      dockerfile: ./Dockerfile
     restart: unless-stopped
     depends_on:
       - backend
@@ -70,12 +72,12 @@ services:
 
   redis:
     container_name: redis
-    image: redis:7.4.2
+    image: redis:8.2.1
     restart: unless-stopped
 
   postgres:
     container_name: postgres
-    image: postgres:17.4
+    image: postgres:17.6
     restart: unless-stopped
     volumes:
       - ./db-data:/var/lib/postgresql/data

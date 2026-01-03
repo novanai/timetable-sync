@@ -3,6 +3,7 @@ import datetime
 
 import blacksheep
 import orjson
+import logging
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from openapidocs.v3 import Info  # pyright: ignore[reportMissingTypeStubs]
 
@@ -14,6 +15,7 @@ from timetable import cns, models, utils
 app = blacksheep.Application()
 api = api_.API()
 cns_api = cns.API()
+logger = logging.getLogger(__name__)
 
 docs = OpenAPIHandler(
     info=Info(title="TimetableSync API", version=__version__),
@@ -30,6 +32,7 @@ async def start_session() -> None:
         models.CategoryType.MODULES,
         models.CategoryType.LOCATIONS,
     ):
+        logger.info(f"loading {category_type}")
         await utils.get_basic_category_results(api, category_type)
 
 
@@ -59,7 +62,7 @@ CATEGORY_TYPES: dict[str, models.CategoryType] = {
 @docs.ignore()
 @blacksheep.route("/api/all/{category_type}")
 async def all_category_values(
-    category_type: str,
+    category_type: str, query: str | None = None
 ) -> blacksheep.Response:
     if category_type not in ("course", "module", "location", "club", "society"):
         return blacksheep.status_code(
@@ -69,11 +72,13 @@ async def all_category_values(
 
     if category_type in CATEGORY_TYPES:
         categories = await utils.get_basic_category_results(
-            api, CATEGORY_TYPES[category_type]
+            api, CATEGORY_TYPES[category_type], query
         )
 
     else:
-        categories = await cns_api.fetch_unlocked_groups(cns.GroupType(category_type))
+        categories = await cns_api.fetch_group(cns.GroupType(category_type))
+        if query:
+            categories = cns.filter_category_results(categories, query)
 
     return blacksheep.Response(
         status=200,
@@ -149,17 +154,14 @@ async def cns_api_timetable(
     society_ids = str_to_list(societies) if societies else []
     club_ids = str_to_list(clubs) if clubs else []
 
-    events: dict[str, list[cns.Event | cns.Activity]] = collections.defaultdict(list)
+    events: list[cns.Event | cns.Activity] = []
 
-    for group_type, ids in (
+    for group, ids in (
         (cns.GroupType.SOCIETY, society_ids),
         (cns.GroupType.CLUB, club_ids),
     ):
         for id_ in ids:
-            group = await cns_api.fetch_group_info(group_type, id_)
-            events[group.name].extend(
-                await cns_api.fetch_group_events_activities(group_type, id_)
-            )
+            events.extend(await cns_api.fetch_group_events_activities(id_, group))
 
     calendar = cns.generate_ical_file(events)
 
