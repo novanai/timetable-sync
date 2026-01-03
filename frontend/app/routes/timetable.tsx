@@ -62,7 +62,7 @@ export default function Timetable() {
     diff.removed.map((courseId: string) => calendarRef.current?.getApi().getEventSourceById(courseId)?.remove())
     diff.added.map((courseId: string) => {calendarRef.current?.getApi().addEventSource({
       id: courseId,
-      url: `http://localhost/api?courses=${courseId}`,
+      url: `http://localhost/api/?courses=${courseId}`,
       format: "ics"
     })})
   };
