@@ -3,8 +3,8 @@ import type { Route } from "./+types/home";
 
 export function meta({ }: Route.MetaArgs) {
   return [
-    { title: "New React Router App" },
-    { name: "description", content: "Welcome to React Router!" },
+    { title: "TimetableSync" },
+    // { name: "description", content: "Welcome to React Router!" },
   ];
 }
 
@@ -30,8 +30,8 @@ export default function Home() {
           calendar and enable the "Sync" option
         </li>
         <li>
-          On Apple devices: go to
-          <Link to="https://calendar.google.com/calendar/syncselect" className="text-secondary link link-hover">https://calendar.google.com/calendar/syncselect</Link>, 
+          On Apple devices: go to <Link to="https://calendar.google.com/calendar/syncselect" className="text-secondary link link-hover">
+          https://calendar.google.com/calendar/syncselect</Link>, 
           select the calendar(s) you want to sync, and then save
         </li>
       </ul>
