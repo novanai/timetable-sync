@@ -313,6 +313,7 @@ class API:
                         {"DayOfWeek": 3},
                         {"DayOfWeek": 4},
                         {"DayOfWeek": 5},
+                        {"DayOfWeek": 6},
                     ],
                 },
                 "CategoryTypesWithIdentities": [
