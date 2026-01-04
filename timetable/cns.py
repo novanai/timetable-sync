@@ -9,6 +9,9 @@ import aiohttp
 import icalendar
 import orjson
 
+from rapidfuzz import fuzz
+from rapidfuzz import utils as fuzz_utils
+
 from timetable import __version__, utils
 
 
@@ -153,6 +156,22 @@ class API:
     ) -> utils.Category:
         d = await self.get_data(f"{SITE}/{group_type.value}/{identity}")
         return utils.Category(name=d["name"], identity=identity)
+
+
+def filter_category_results(
+    categories: list[utils.Category], query: str
+) -> list[utils.Category]:
+    results: typing.Iterable[tuple[utils.Category, float]] = []
+
+    for item in categories:
+        ratio = fuzz.partial_ratio(
+            query, item.name, processor=fuzz_utils.default_process
+        )
+        results.append((item, ratio))
+
+    results = filter(lambda r: r[1] > 80, results)
+    results = sorted(results, key=lambda r: r[1], reverse=True)
+    return [r[0] for r in results]
 
 
 def generate_ical_file(events: dict[str, list[Event | Activity]]) -> bytes:
