@@ -237,7 +237,7 @@ class API:
             ]
             results.append((item, max(item_ratios)))
 
-        results = filter(lambda r: r[1] > 80, results)
+        results = filter(lambda r: r[1] > 85, results)
         results = sorted(results, key=lambda r: r[1], reverse=True)
         return [r[0] for r in results[:count]]
 
