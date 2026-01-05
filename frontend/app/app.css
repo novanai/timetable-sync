@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "react-big-calendar/lib/css/react-big-calendar.css";
+@import 'react-tabs/style/react-tabs.css';
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
@@ -14,6 +16,25 @@ body {
   }
 } */
 
-.fc-event-main {
-  overflow: hidden;
+.rbc-allday-cell, .rbc-event-label {
+  display: none;
+}
+
+.rbc-time-slot {
+  font-size: 14px;
+}
+
+.rbc-event-content p {
+  font-size: 14px;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.rbc-event {
+  border: none !important;
+  color: #000;
+}
+
+.rbc-event:focus {
+  outline: none;
 }
