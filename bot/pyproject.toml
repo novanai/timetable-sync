@@ -1,0 +1,86 @@
+[project]
+name = "timetable-sync-bot"
+description = "TimetableSync Discord Bot"
+dynamic = ["version"]
+requires-python = ">=3.13"
+license = "MIT"
+authors = [{ name = "nova" }]
+dependencies = [
+    "asyncpg>=0.31.0",
+    "hikari>=2.5.0",
+    "hikari-arc>=2.1.1",
+    "hikari-miru>=4.2.0",
+    "human-readable>=2.0.0",
+    "parsedatetime>=2.6",
+    "timetable-sync-api",
+]
+
+[project.urls]
+Repository = "https://github.com/novanai/timetable-sync"
+
+[dependency-groups]
+dev = [
+    "asyncpg-stubs>=0.31.1",
+    "parsedatetime-stubs",
+    "pyright>=1.1.407",
+    "ruff>=0.14.10",
+    "uv>=0.9.22",
+]
+nox = [
+    "nox>=2025.11.12",
+]
+
+[tool.ruff]
+include = ["./src/*.py"]
+target-version = "py313"
+
+[tool.ruff.format]
+docstring-code-format = true
+line-ending = "lf"
+
+[tool.ruff.lint]
+select = [
+    "F", # Pyflakes
+    "E", # Error (pycodestyle)
+    "W", # Warning (pycodestyle)
+    "I", # isort
+    "N", # pep8-naming
+    "ANN", # flake8-annotations
+    "ASYNC", # flake8-async
+    "A", # flake8-builtins
+    "COM", # flake8-commas
+    "C4", # flake8-comprehensions
+    "DTZ", # flake8-datetimez
+    "ICN", # flake8-import-conventions
+    "Q", # flake8-quotes
+    "RET", # flake8-return
+    "SIM", # flake8-simplify
+    "TID", # flake8-tidy-imports
+    "TC", # flake8-type-checking
+    "ARG", # flake8-unused-arguments
+    "ERA", # eradicate
+    "PL", # Pylint
+    "PERF", # Perflint
+    "RUF", # Ruff-specific rules
+]
+ignore = [
+    "E501", # line-too-long
+    "PLR2004", # magic-value-comparison
+    "PLR0913", # too-many-arguments
+    "COM812", # missing-trailing-comma
+    "ANN401", # any-type
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.uv]
+required-version = "~=0.9"
+
+[tool.uv.sources]
+timetable-sync-api = { git = "https://github.com/novanai/timetable-sync-api" }
+parsedatetime-stubs = { git = "https://github.com/Sachaa-Thanasius/parsedatetime-stubs" }
+
+[tool.pyright]
+pythonVersion = "3.13"
+typeCheckingMode = "strict"

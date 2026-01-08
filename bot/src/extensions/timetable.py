@@ -7,8 +7,8 @@ import hikari
 import human_readable
 import parsedatetime
 
-from bot import autocomplete
-from bot.database import Database
+from src import autocomplete
+from src.database import Database
 from timetable import api as api_
 from timetable import models, utils
 

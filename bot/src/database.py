@@ -35,7 +35,7 @@ class Database:
         )
 
         async with self.pool.acquire() as conn:
-            with open("bot/build.sql", "r") as f:
+            with open("src/build.sql", "r") as f:
                 await conn.execute(f.read())
 
     @asynccontextmanager

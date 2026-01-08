@@ -1,2 +1,0 @@
-asyncpg-stubs==0.30.0
-git+https://github.com/Sachaa-Thanasius/parsedatetime-stubs

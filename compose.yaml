@@ -52,8 +52,8 @@ services:
   bot:
     container_name: bot
     build:
-      context: .
-      dockerfile: ./bot/Dockerfile
+      context: ./bot
+      dockerfile: ./Dockerfile
     restart: unless-stopped
     depends_on:
       - redis
