@@ -1,7 +1,6 @@
-import type { Route } from "./+types/timetable_new";
+import type { Route } from "./+types/timetable";
 import { useState, useEffect } from "react";
 import AsyncSelect from 'react-select/async';
-import type { MultiValue } from 'react-select';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import type { Event } from "react-big-calendar";
@@ -81,6 +80,10 @@ export default function Timetable() {
         const courses = Array.from(courseOptions.map(o => o.value)).join(",");
         const modules = Array.from(moduleOptions.map(o => o.value)).join(",");
         const locations = Array.from(locationOptions.map(o => o.value)).join(",");
+
+        if (!courses && !modules && !locations) {
+            return []
+        };
 
         const res = await fetch(`http://localhost/api/?courses=${courses}&modules=${modules}&locations=${locations}&format=json&display=true`);
         return await res.json();
