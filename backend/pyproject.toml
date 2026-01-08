@@ -8,7 +8,6 @@ authors = [{ name = "nova" }]
 dependencies = [
     "aiohttp>=3.13.3",
     "blacksheep>=2.4.5",
-    "icalendar>=6.3.2",
     "timetable-sync-api",
     "uvicorn[standard]>=0.40.0",
 ]
@@ -20,7 +19,6 @@ Repository = "https://github.com/novanai/timetable-sync"
 dev = [
     "pyright>=1.1.407",
     "ruff>=0.14.10",
-    "types-icalendar>=6.3.2.20251222",
     "uv>=0.9.22",
 ]
 nox = [
@@ -28,7 +26,7 @@ nox = [
 ]
 
 [tool.ruff]
-include = ["./timetable/*.py", "noxfile.py"]
+include = ["./src/*.py", "noxfile.py"]
 target-version = "py313"
 
 [tool.ruff.format]
