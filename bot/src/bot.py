@@ -17,7 +17,7 @@ client = arc.GatewayClient(bot)
 client.set_type_dependency(
     parsedatetime.Calendar, parsedatetime.Calendar(parsedatetime.Constants("en_GB"))
 )
-client.set_type_dependency(api_.API, api_.API())
+client.set_type_dependency(api_.API, api_.API(os.environ["REDIS_ADDRESS"]))
 client.set_type_dependency(
     miru.Client, miru.Client.from_arc(client, ignore_unknown_interactions=True)
 )

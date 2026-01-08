@@ -1,19 +1,19 @@
 import collections
 import datetime
+import os
 
 import blacksheep
 import orjson
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from openapidocs.v3 import Info  # pyright: ignore[reportMissingTypeStubs]
-
-from src import __version__, api_docs
 from timetable import api as api_
 from timetable import cns, models, utils
 
+from src import __version__, api_docs
 
 app = blacksheep.Application()
-api = api_.API()
-cns_api = cns.API()
+api = api_.API(os.environ["REDIS_ADDRESS"])
+cns_api = cns.API(os.environ["CNS_ADDRESS"])
 
 docs = OpenAPIHandler(
     info=Info(title="TimetableSync API", version=__version__),
@@ -104,7 +104,7 @@ async def timetable_api(
 
     if not course and not courses and not modules and not locations:
         raise ValueError("No courses, modules or locations provided.")
-    elif format_ is models.ResponseFormat.UNKNOWN:
+    if format_ is models.ResponseFormat.UNKNOWN:
         raise ValueError(f"Invalid format '{format_}'.")
 
     codes: dict[models.CategoryType, list[str]] = collections.defaultdict(list)
