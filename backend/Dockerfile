@@ -1,14 +1,15 @@
 FROM python:3.13.3-slim
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y gcc
+RUN apt-get update && apt-get install -y gcc git
 
-COPY backend/requirements.txt backend/requirements.txt
-COPY timetable/requirements.txt timetable/requirements.txt
-RUN pip install -r backend/requirements.txt -r timetable/requirements.txt
+COPY pyproject.toml .
+COPY uv.lock .
 
-COPY backend backend
-COPY timetable timetable
+RUN uv sync --frozen
 
-CMD python -OOm uvicorn backend.server:app --workers 4 --host 0.0.0.0 --port "${BACKEND_PORT}"
+COPY src src
+
+CMD uv run uvicorn src.server:app --workers 4 --host 0.0.0.0 --port "${BACKEND_PORT}"

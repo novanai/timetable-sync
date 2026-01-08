@@ -17,8 +17,8 @@ services:
   backend:
     container_name: backend
     build:
-      context: .
-      dockerfile: ./backend/Dockerfile
+      context: ./backend
+      dockerfile: ./Dockerfile
     restart: unless-stopped
     depends_on:
       - redis
@@ -52,8 +52,8 @@ services:
   bot:
     container_name: bot
     build:
-      context: .
-      dockerfile: ./bot/Dockerfile
+      context: ./bot
+      dockerfile: ./Dockerfile
     restart: unless-stopped
     depends_on:
       - redis

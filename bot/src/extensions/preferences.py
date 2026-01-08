@@ -6,7 +6,7 @@ import arc
 import hikari
 import miru
 
-from bot.database import Database
+from src.database import Database
 from timetable import api as api_
 from timetable import models, utils
 

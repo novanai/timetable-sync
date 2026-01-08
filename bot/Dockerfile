@@ -1,14 +1,15 @@
 FROM python:3.12.6-slim
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y python3-icu
+RUN apt-get update && apt-get install -y python3-icu git
 
-COPY bot/requirements.txt bot/requirements.txt
-COPY timetable/requirements.txt timetable/requirements.txt
-RUN pip install -r bot/requirements.txt -r timetable/requirements.txt
+COPY pyproject.toml .
+COPY uv.lock .
 
-COPY bot bot
-COPY timetable timetable
+RUN uv sync --frozen
 
-CMD [ "python3", "-OOm", "bot" ]
+COPY src src
+
+CMD uv run -m src

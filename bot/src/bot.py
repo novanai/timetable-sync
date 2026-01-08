@@ -7,7 +7,7 @@ import hikari
 import miru
 import parsedatetime
 
-from bot.database import Database
+from src.database import Database
 from timetable import api as api_
 from timetable import models, utils
 
@@ -17,12 +17,12 @@ client = arc.GatewayClient(bot)
 client.set_type_dependency(
     parsedatetime.Calendar, parsedatetime.Calendar(parsedatetime.Constants("en_GB"))
 )
-client.set_type_dependency(api_.API, api_.API())
+client.set_type_dependency(api_.API, api_.API(os.environ["REDIS_ADDRESS"]))
 client.set_type_dependency(
     miru.Client, miru.Client.from_arc(client, ignore_unknown_interactions=True)
 )
 
-client.load_extensions_from("bot/extensions")
+client.load_extensions_from("src/extensions")
 
 
 @client.add_startup_hook
