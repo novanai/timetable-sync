@@ -6,7 +6,7 @@ import orjson
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from openapidocs.v3 import Info  # pyright: ignore[reportMissingTypeStubs]
 
-from backend import __version__, api_docs
+from src import __version__, api_docs
 from timetable import api as api_
 from timetable import cns, models, utils
 
