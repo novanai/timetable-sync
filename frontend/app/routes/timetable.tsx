@@ -1,9 +1,10 @@
 import type { Route } from "./+types/timetable";
 import { useState, useEffect } from "react";
+import { useSearchParams, useLocation, useParams } from "react-router";
 import AsyncSelect from 'react-select/async';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
-import { Calendar, momentLocalizer } from "react-big-calendar";
-import type { Event } from "react-big-calendar";
+import { Calendar, Views, momentLocalizer } from "react-big-calendar";
+import type { Event, View } from "react-big-calendar";
 import moment from "moment";
 
 import ColorHashModule from "color-hash";
@@ -22,8 +23,8 @@ const localizer = momentLocalizer(moment);
 
 export function meta({ }: Route.MetaArgs) {
     return [
-        { title: "New React Router App" },
-        { name: "description", content: "Welcome to React Router!" },
+        { title: "TimetableViewer | TimetableSync" },
+        { name: "description", content: "View your timetable." },
     ];
 }
 
@@ -70,16 +71,27 @@ export default function Timetable() {
     const [moduleOptions, setModuleOptions] = useState<readonly Option[]>([]);
     const [locationOptions, setLocationOptions] = useState<readonly Option[]>([]);
 
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    const [view, setView] = useState<View>(Views.WEEK);
+
     const selects: Array<SelectConfig> = [
         { id: "course", value: courseOptions, setValue: setCourseOptions },
         { id: "module", value: moduleOptions, setValue: setModuleOptions },
         { id: "location", value: locationOptions, setValue: setLocationOptions },
     ]
 
-    async function fetchCalenar() {
+    const location = useLocation();
+
+    async function fetchCalendar() {
         const courses = Array.from(courseOptions.map(o => o.value)).join(",");
         const modules = Array.from(moduleOptions.map(o => o.value)).join(",");
         const locations = Array.from(locationOptions.map(o => o.value)).join(",");
+
+        searchParams.set("courses", courses);
+        searchParams.set("modules", modules);
+        searchParams.set("locations", locations);
+        setSearchParams(searchParams);
 
         if (!courses && !modules && !locations) {
             return []
@@ -90,8 +102,39 @@ export default function Timetable() {
     }
 
     useEffect(() => {
+        const getViewFromWith = () => window.innerWidth > 768 ? Views.WEEK : Views.DAY;
+        const updateView = () => setView(getViewFromWith());
+
+        updateView();
+        window.addEventListener("resize", updateView);
+
+
+    }, []);
+
+    useEffect(() => {
+        const loadSelectedOptions = async () => {
+            const params = new URLSearchParams(location.search);
+
+            console.log(params)
+
+            selects.forEach(item => {
+                const values = params.get(`${item.id}s`)
+                if (!values) return;
+
+                // TODO: fetch label for each value
+
+                item.setValue(values.split(",").map(value => {
+                    return { label: "test", value: value };
+                }))
+            })
+        };
+
+        loadSelectedOptions();
+    }, []);
+
+    useEffect(() => {
         const loadEvents = async () => {
-            const data = await fetchCalenar();
+            const data = await fetchCalendar();
             setEvents(parseCalendarJSON(data));
         };
 
@@ -127,8 +170,9 @@ export default function Timetable() {
             <Calendar
                 localizer={localizer}
                 defaultDate={new Date()}
-                defaultView="week"
-                views={["week", "day", "agenda"]}
+                view={view}
+                views={[Views.WEEK, Views.DAY]}
+                onView={setView}
                 min={new Date(0, 0, 0, 8, 0)}
                 max={new Date(0, 0, 0, 19, 0)}
                 style={{ height: "960px" }}
