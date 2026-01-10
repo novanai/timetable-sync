@@ -26,13 +26,11 @@ export default function Home() {
       <p className="mb-3">To make sure you calendar syncs on mobile devices:</p>
       <ul className="list-disc ml-8">
         <li>
-          On Android devices: open Google Calendar, go to settings, select the
-          calendar and enable the "Sync" option
+          On Android devices: open Google Calendar, go to settings, select the calendar and enable the "Sync" option
         </li>
         <li>
           On Apple devices: go to <Link to="https://calendar.google.com/calendar/syncselect" className="text-secondary link link-hover">
-          https://calendar.google.com/calendar/syncselect</Link>, 
-          select the calendar(s) you want to sync, and then save
+          https://calendar.google.com/calendar/syncselect</Link>, select the calendar(s) you want to sync, and then save
         </li>
       </ul>
       <br />
@@ -46,8 +44,7 @@ export default function Home() {
           Go to Calendars &gt; Add Calendar &gt; Add Subscription Calendar
         </li>
         <li>
-          Enter the calendar's address, which you can
-          <Link to="/generator" className="text-secondary link link-hover">generate here</Link>,
+          Enter the calendar's address, which you can <Link to="/generator" className="text-secondary link link-hover">generate here</Link>,
           and then click "Subscribe"
         </li>
       </ol>
@@ -57,8 +54,8 @@ export default function Home() {
         Download an iCal file
       </h1>
       <p>
-        If you want to download an iCal file, just go to the calendar's address, which you can
-        <Link to="/generator" className="text-secondary link link-hover">generate here</Link>,
+        If you want to download an iCal file, just go to the calendar's address,
+        which you can <Link to="/generator" className="text-secondary link link-hover">generate here</Link>,
         and download the generated iCal file when prompted.
       </p>
     </div>

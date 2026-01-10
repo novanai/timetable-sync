@@ -100,7 +100,7 @@ export default function Timetable() {
 
     return (
         <main>
-            <Tabs>
+            <Tabs className="mb-4">
                 <TabList>
                     <Tab>Courses</Tab>
                     <Tab>Modules</Tab>
@@ -128,6 +128,7 @@ export default function Timetable() {
                 localizer={localizer}
                 defaultDate={new Date()}
                 defaultView="week"
+                views={["week", "day", "agenda"]}
                 min={new Date(0, 0, 0, 8, 0)}
                 max={new Date(0, 0, 0, 19, 0)}
                 style={{ height: "960px" }}
