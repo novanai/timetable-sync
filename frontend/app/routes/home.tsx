@@ -4,7 +4,7 @@ import type { Route } from "./+types/home";
 export function meta({ }: Route.MetaArgs) {
   return [
     { title: "TimetableSync" },
-    // { name: "description", content: "Welcome to React Router!" },
+    { name: "description", content: "A better way to view your timetable, with the ability to integrate with 3rd party services." },
   ];
 }
 
