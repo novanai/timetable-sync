@@ -20,6 +20,8 @@ services:
       context: ./backend
       dockerfile: ./Dockerfile
     restart: unless-stopped
+    ports:
+      - ${BACKEND_PORT}:${BACKEND_PORT}
     depends_on:
       - redis
       - cns-api
@@ -36,8 +38,8 @@ services:
   frontend:
     container_name: frontend
     build:
-      context: .
-      dockerfile: ./frontend/Dockerfile
+      context: ./frontend
+      dockerfile: ./Dockerfile
     restart: unless-stopped
     depends_on:
       - backend
