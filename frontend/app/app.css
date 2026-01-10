@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "react-big-calendar/lib/css/react-big-calendar.css";
-@import 'react-tabs/style/react-tabs.css';
+@import "react-tabs/style/react-tabs.css";
 
 @plugin "daisyui" {
   themes: winter --default, night --prefersdark;
