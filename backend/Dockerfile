@@ -12,4 +12,4 @@ RUN uv sync --frozen
 
 COPY src src
 
-CMD uv run uvicorn src.server:app --workers 4 --host 0.0.0.0 --port "${BACKEND_PORT}"
+CMD ["uv", "run", "granian", "--interface", "asgi", "src.main:app", "--loop", "uvloop", "--workers", "4", "--host", "0.0.0.0", "--port", "2000"]

@@ -11,7 +11,6 @@ services:
     volumes:
       - ./nginx:/etc/nginx/templates
     environment:
-      - BACKEND_PORT=${BACKEND_PORT}
       - FRONTEND_PORT=${FRONTEND_PORT}
 
   backend:
@@ -24,7 +23,6 @@ services:
       - redis
       - cns-api
     environment:
-      - BACKEND_PORT=${BACKEND_PORT}
       - REDIS_ADDRESS=${REDIS_ADDRESS}
       - CNS_ADDRESS=${CNS_ADDRESS}
     healthcheck:
