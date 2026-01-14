@@ -23,8 +23,7 @@ services:
       - valkey
       - cns-api
     environment:
-      - VALKEY_HOST=${VALKEY_HOST}
-      - VALKEY_PORT=${VALKEY_PORT}
+      - REDIS_ADDRESS=${REDIS_ADDRESS}
       - CNS_ADDRESS=${CNS_ADDRESS}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/api/healthcheck"]
