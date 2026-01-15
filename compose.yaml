@@ -19,11 +19,14 @@ services:
       context: ./backend
       dockerfile: ./Dockerfile
     restart: unless-stopped
+    ports:
+      - "2000:2000"
     depends_on:
-      - redis
+      - valkey
       - cns-api
     environment:
-      - REDIS_ADDRESS=${REDIS_ADDRESS}
+      - VALKEY_HOST=${VALKEY_HOST}
+      - VALKEY_PORT=${VALKEY_PORT}
       - CNS_ADDRESS=${CNS_ADDRESS}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/api/healthcheck"]
@@ -54,11 +57,12 @@ services:
       dockerfile: ./Dockerfile
     restart: unless-stopped
     depends_on:
-      - redis
+      - valkey
       - postgres
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
-      - REDIS_ADDRESS=${REDIS_ADDRESS}
+      - VALKEY_HOST=${VALKEY_HOST}
+      - VALKEY_PORT=${VALKEY_PORT}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
@@ -66,9 +70,9 @@ services:
       - POSTGRES_PORT=${POSTGRES_PORT}
       - CNS_ADDRESS=${CNS_ADDRESS}
 
-  redis:
-    container_name: redis
-    image: redis:7.4.2
+  valkey:
+    container_name: valkey
+    image: valkey/valkey:9.0.1
     restart: unless-stopped
 
   postgres:
