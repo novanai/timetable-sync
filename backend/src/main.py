@@ -7,7 +7,11 @@ from timetable.models import CategoryType
 
 from src.dependencies import get_cns_api, get_timetable_api
 from src.v2.routes import router as v2_router
+from src.v3.routes import timetable_router as v3_timetable_router
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
@@ -18,7 +22,10 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
             CategoryType.MODULES,
             CategoryType.LOCATIONS,
         ):
-            await utils.get_basic_category_results(timetable_api, category_type)
+            logger.info(f"loading {category_type.name}...")
+            await utils.get_basic_category_items(timetable_api, category_type)
+            
+    logger.info("loaded all")
 
     yield
 
@@ -30,7 +37,10 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
         await cns_api.session.close()
 
 
-OPENAPI_TAGS = [{"name": "v2", "description": "Deprecated"}]
+OPENAPI_TAGS = [
+    {"name": "v2", "description": "Deprecated"},
+    {"name": "v3", "description": "Latest"},
+]
 
 app = FastAPI(
     lifespan=lifespan,
@@ -40,6 +50,7 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 app.include_router(v2_router, prefix="/api", tags=["v2"], deprecated=True)
+app.include_router(v3_timetable_router, prefix="/api/v3", tags=["v3"])
 
 
 @app.get("/api/healthcheck")

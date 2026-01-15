@@ -29,12 +29,12 @@ async def get_all_category_items(
     cns_api: Annotated[CNSAPI, Depends(get_cns_api)],
     category_type: Annotated[str, Path()],
     query: Annotated[str | None, Query()] = None,
-) -> list[utils.Category]:
+) -> list[utils.BasicCategoryItem]:
     if category_type not in ("course", "module", "location", "club", "society"):
         raise HTTPException(status_code=400, detail="Invalid value provided.")
 
     if category_type in CATEGORY_TYPES:
-        categories = await utils.get_basic_category_results(
+        categories = await utils.get_basic_category_items(
             timetable_api, CATEGORY_TYPES[category_type], query
         )
 

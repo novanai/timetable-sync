@@ -6,7 +6,9 @@ from timetable.cns import API as CNSAPI
 
 
 async def get_timetable_api() -> AsyncGenerator[TimetableAPI, None]:
-    api = TimetableAPI(os.environ["REDIS_ADDRESS"])
+    api = await TimetableAPI.create(
+        os.environ["VALKEY_HOST"], int(os.environ["VALKEY_PORT"])
+    )
     try:
         yield api
     finally:
