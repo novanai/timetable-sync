@@ -1,17 +1,19 @@
+import logging
+import time
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Awaitable, Callable
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from timetable import utils
 from timetable.models import CategoryType
 
 from src.dependencies import get_cns_api, get_timetable_api
 from src.v2.routes import router as v2_router
+from src.v3.routes import cns_router as v3_cns_router
 from src.v3.routes import timetable_router as v3_timetable_router
 
-import logging
-
 logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
@@ -22,10 +24,10 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
             CategoryType.MODULES,
             CategoryType.LOCATIONS,
         ):
-            logger.info(f"loading {category_type.name}...")
+            logger.info(f"loading category '{category_type.name}'")
             await utils.get_basic_category_items(timetable_api, category_type)
-            
-    logger.info("loaded all")
+
+    logger.info("loaded all categories")
 
     yield
 
@@ -38,8 +40,8 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
 
 
 OPENAPI_TAGS = [
-    {"name": "v2", "description": "Deprecated"},
     {"name": "v3", "description": "Latest"},
+    {"name": "v2", "description": "Deprecated"},
 ]
 
 app = FastAPI(
@@ -51,8 +53,23 @@ app = FastAPI(
 )
 app.include_router(v2_router, prefix="/api", tags=["v2"], deprecated=True)
 app.include_router(v3_timetable_router, prefix="/api/v3", tags=["v3"])
+app.include_router(v3_cns_router, prefix="/api/v3", tags=["v3"])
 
 
 @app.get("/api/healthcheck")
 async def healthcheck() -> str:
     return ":3"
+
+
+@app.middleware("http")
+async def log_request_process_times(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    start_time = time.perf_counter()
+    response = await call_next(request)
+    end_time = time.perf_counter()
+    execution_time_ms = (end_time - start_time) * 1000
+
+    logger.info(f"request to '{request.url.path}?{request.url.query}' took {execution_time_ms:.4f} ms")
+
+    return response
