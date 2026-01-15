@@ -167,7 +167,9 @@ async def get_cns_calendar_events(
     society_ids = str_to_list(societies) if societies else []
     club_ids = str_to_list(clubs) if clubs else []
 
-    events: dict[str, list[cns.Event | cns.Activity]] = collections.defaultdict(list)
+    events: dict[str, list[cns.Event | cns.Activity | cns.Fixture]] = (
+        collections.defaultdict(list)
+    )
 
     for group_type, ids in (
         (cns.GroupType.SOCIETY, society_ids),
@@ -176,7 +178,7 @@ async def get_cns_calendar_events(
         for id_ in ids:
             group = await cns_api.fetch_group_info(group_type, id_)
             events[group.name].extend(
-                await cns_api.fetch_group_events_activities(group_type, id_)
+                await cns_api.fetch_group_events_activities_fixtures(group_type, id_)
             )
 
     calendar = cns.generate_ical_file(events)

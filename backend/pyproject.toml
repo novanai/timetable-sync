@@ -18,8 +18,8 @@ Repository = "https://github.com/novanai/timetable-sync"
 [dependency-groups]
 dev = [
     "pyright>=1.1.407",
-    "ruff>=0.14.11",
-    "uv>=0.9.25",
+    "ruff>=0.14.13",
+    "uv>=0.9.26",
 ]
 nox = [
     "nox>=2025.11.12",
