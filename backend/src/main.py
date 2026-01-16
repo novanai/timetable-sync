@@ -60,6 +60,8 @@ app.include_router(v3_cns_router, prefix="/api/v3", tags=["v3"])
 origins = [
     "http://localhost",
     "http://localhost:5173",
+    "https://timetable.redbrick.dcu.ie",
+    "https://timetable-test.redbrick.dcu.ie",
 ]
 
 app.add_middleware(
