@@ -1,5 +1,5 @@
 import type { Route } from "./+types/timetable";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useLocation } from "react-router";
 import AsyncSelect from 'react-select/async';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
@@ -23,7 +23,7 @@ const localizer = momentLocalizer(moment);
 
 export function meta({ }: Route.MetaArgs) {
     return [
-        { title: "TimetableViewer | TimetableSync" },
+        { title: "Timetable Viewer | TimetableSync" },
         { name: "description", content: "View your timetable." },
     ];
 }
@@ -44,19 +44,38 @@ category_type_mapping.set("module", "525fe79b-73c3-4b5c-8186-83c652b3adcc")
 category_type_mapping.set("location", "1e042cb1-547d-41d4-ae93-a1f2c3d34538")
 category_type_mapping.set("course", "241e4d36-60e0-49f8-b27e-99416745d98d")
 
-const createLoadOptions = (type: string) => {
-    return async (inputValue: string): Promise<Option[]> => {
-        if (!inputValue) return [];
+const createLoadOptions = (category_type: string) => {
+    const category_type_id = category_type_mapping.get(category_type);
 
-        const category_type_id = category_type_mapping.get(type);
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-        const res = await fetch(`http://localhost/api/v3/timetable/category/${category_type_id}/items?query=${inputValue}`);
-        const data = await res.json();
+    return (inputValue: string, callback: (options: Option[]) => void) => {
+        if (!inputValue) {
+            callback([]);
+            return;
+        }
 
-        return data.map((item: any) => ({
-            label: item.name,
-            value: item.identity,
-        }));
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+
+        timeoutId = setTimeout(async () => {
+            try {
+                const res = await fetch(
+                    `http://localhost/api/v3/timetable/category/${category_type_id}/items?query=${inputValue}`
+                );
+                const data = await res.json();
+
+                callback(
+                    data.map((item: any) => ({
+                        label: item.name,
+                        value: item.identity,
+                    }))
+                );
+            } catch (e) {
+                callback([]);
+            }
+        }, 300);
     };
 };
 
@@ -95,11 +114,11 @@ export default function Timetable() {
             return []
         };
 
-        selects.map(({id, value}) => {
+        selects.map(({ id, value }) => {
             // clear search params, set new ones
             searchParams.delete(id);
 
-            value.map(({value}) => {
+            value.map(({ value }) => {
                 searchParams.append(id, value);
             })
         })
@@ -109,7 +128,7 @@ export default function Timetable() {
         const res = await fetch(
             `http://localhost/api/v3/timetable/events?${searchParams.toString()}&extra_details=all`,
             {
-                headers: {"media-type": "application/json"},
+                headers: { "media-type": "application/json" },
             }
         );
         return await res.json();
@@ -121,8 +140,6 @@ export default function Timetable() {
 
         updateView();
         window.addEventListener("resize", updateView);
-
-
     }, []);
 
     useEffect(() => {
@@ -165,21 +182,28 @@ export default function Timetable() {
                     <Tab>Locations</Tab>
                 </TabList>
 
-                {selects.map(({ id, value, setValue }) => (
-                    <TabPanel key={id}>
-                        <AsyncSelect
-                            isMulti
-                            name={`select-${id}`}
-                            cacheOptions
-                            loadOptions={createLoadOptions(id)}
-                            value={value}
-                            onChange={setValue}
-                            styles={{
-                                menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-                            }}
-                        />
-                    </TabPanel>
-                ))}
+                {selects.map(({ id, value, setValue }) => {
+                    const loadOptions = useMemo(
+                        () => createLoadOptions(id),
+                        [id]
+                    );
+
+                    return (
+                        <TabPanel key={id}>
+                            <AsyncSelect
+                                isMulti
+                                name={`select-${id}`}
+                                cacheOptions
+                                loadOptions={loadOptions}
+                                value={value}
+                                onChange={setValue}
+                                styles={{
+                                    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                                }}
+                            />
+                        </TabPanel>
+                    )
+                })}
             </Tabs>
 
             <Calendar

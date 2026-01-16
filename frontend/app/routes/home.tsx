@@ -30,7 +30,7 @@ export default function Home() {
         </li>
         <li>
           On Apple devices: go to <Link to="https://calendar.google.com/calendar/syncselect" className="text-secondary link link-hover">
-          https://calendar.google.com/calendar/syncselect</Link>, select the calendar(s) you want to sync, and then save
+            https://calendar.google.com/calendar/syncselect</Link>, select the calendar(s) you want to sync, and then save
         </li>
       </ul>
       <br />
