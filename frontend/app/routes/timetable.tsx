@@ -1,6 +1,6 @@
 import type { Route } from "./+types/timetable";
 import { useState, useEffect } from "react";
-import { useSearchParams, useLocation, useParams } from "react-router";
+import { useSearchParams, useLocation } from "react-router";
 import AsyncSelect from 'react-select/async';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import { Calendar, Views, momentLocalizer } from "react-big-calendar";
@@ -39,11 +39,18 @@ type SelectConfig = {
     setValue: React.Dispatch<React.SetStateAction<readonly Option[]>>;
 };
 
+const category_type_mapping = new Map()
+category_type_mapping.set("module", "525fe79b-73c3-4b5c-8186-83c652b3adcc")
+category_type_mapping.set("location", "1e042cb1-547d-41d4-ae93-a1f2c3d34538")
+category_type_mapping.set("course", "241e4d36-60e0-49f8-b27e-99416745d98d")
+
 const createLoadOptions = (type: string) => {
     return async (inputValue: string): Promise<Option[]> => {
         if (!inputValue) return [];
 
-        const res = await fetch(`http://localhost/api/all/${type}?query=${inputValue}`);
+        const category_type_id = category_type_mapping.get(type);
+
+        const res = await fetch(`http://localhost/api/v3/timetable/category/${category_type_id}/items?query=${inputValue}`);
         const data = await res.json();
 
         return data.map((item: any) => ({
@@ -84,20 +91,27 @@ export default function Timetable() {
     const location = useLocation();
 
     async function fetchCalendar() {
-        const courses = Array.from(courseOptions.map(o => o.value)).join(",");
-        const modules = Array.from(moduleOptions.map(o => o.value)).join(",");
-        const locations = Array.from(locationOptions.map(o => o.value)).join(",");
-
-        searchParams.set("courses", courses);
-        searchParams.set("modules", modules);
-        searchParams.set("locations", locations);
-        setSearchParams(searchParams);
-
-        if (!courses && !modules && !locations) {
+        if (!courseOptions.length && !moduleOptions.length && !locationOptions.length) {
             return []
         };
 
-        const res = await fetch(`http://localhost/api/?courses=${courses}&modules=${modules}&locations=${locations}&format=json&display=true`);
+        selects.map(({id, value}) => {
+            // clear search params, set new ones
+            searchParams.delete(id);
+
+            value.map(({value}) => {
+                searchParams.append(id, value);
+            })
+        })
+
+        setSearchParams(searchParams);
+
+        const res = await fetch(
+            `http://localhost/api/v3/timetable/events?${searchParams.toString()}&extra_details=all`,
+            {
+                headers: {"media-type": "application/json"},
+            }
+        );
         return await res.json();
     }
 
@@ -115,18 +129,19 @@ export default function Timetable() {
         const loadSelectedOptions = async () => {
             const params = new URLSearchParams(location.search);
 
-            console.log(params)
-
-            selects.forEach(item => {
-                const values = params.get(`${item.id}s`)
+            for (const item of selects) {
+                const values = params.getAll(item.id)
                 if (!values) return;
 
-                // TODO: fetch label for each value
-
-                item.setValue(values.split(",").map(value => {
-                    return { label: "test", value: value };
-                }))
-            })
+                item.setValue(await Promise.all(values.map(async (value) => {
+                    const category_type_id = category_type_mapping.get(item.id);
+                    const res = await fetch(
+                        `http://localhost/api/v3/timetable/category/${category_type_id}/items/${value}`
+                    )
+                    const data = await res.json()
+                    return { label: data["name"], value: value };
+                })))
+            }
         };
 
         loadSelectedOptions();
