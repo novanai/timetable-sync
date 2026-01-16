@@ -6,6 +6,7 @@ from typing import AsyncGenerator, Awaitable, Callable
 from fastapi import FastAPI, Request, Response
 from timetable import utils
 from timetable.models import CategoryType
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.dependencies import get_cns_api, get_timetable_api
 from src.v2.routes import router as v2_router
@@ -55,6 +56,19 @@ app.include_router(v2_router, prefix="/api", tags=["v2"], deprecated=True)
 app.include_router(v3_timetable_router, prefix="/api/v3", tags=["v3"])
 app.include_router(v3_cns_router, prefix="/api/v3", tags=["v3"])
 
+# TODO: for testing only, remove before prod
+origins = [
+    "http://localhost",
+    "http://localhost:5173",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/api/healthcheck")
 async def healthcheck() -> str:
