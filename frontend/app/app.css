@@ -11,7 +11,8 @@
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
-.rbc-allday-cell, .rbc-event-label {
+.rbc-allday-cell,
+.rbc-event-label {
   display: none;
 }
 
