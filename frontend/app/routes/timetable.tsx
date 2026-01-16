@@ -155,11 +155,7 @@ export default function Timetable() {
     }
 
     useEffect(() => {
-        const getViewFromWith = () => window.innerWidth > 768 ? Views.WEEK : Views.DAY;
-        const updateView = () => setView(getViewFromWith());
-
-        updateView();
-        window.addEventListener("resize", updateView);
+        setView(window.innerWidth > 768 ? Views.WEEK : Views.DAY);
     }, []);
 
     useEffect(() => {
