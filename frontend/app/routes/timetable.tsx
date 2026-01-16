@@ -62,7 +62,7 @@ const createLoadOptions = (category_type: string) => {
         timeoutId = setTimeout(async () => {
             try {
                 const res = await fetch(
-                    `http://localhost/api/v3/timetable/category/${category_type_id}/items?query=${inputValue}`
+                    `/api/v3/timetable/category/${category_type_id}/items?query=${inputValue}`
                 );
                 const data = await res.json();
 
@@ -126,7 +126,7 @@ export default function Timetable() {
         setSearchParams(searchParams);
 
         const res = await fetch(
-            `http://localhost/api/v3/timetable/events?${searchParams.toString()}&extra_details=all`,
+            `/api/v3/timetable/events?${searchParams.toString()}&extra_details=all`,
             {
                 headers: { "media-type": "application/json" },
             }
@@ -153,7 +153,7 @@ export default function Timetable() {
                 item.setValue(await Promise.all(values.map(async (value) => {
                     const category_type_id = category_type_mapping.get(item.id);
                     const res = await fetch(
-                        `http://localhost/api/v3/timetable/category/${category_type_id}/items/${value}`
+                        `/api/v3/timetable/category/${category_type_id}/items/${value}`
                     )
                     const data = await res.json()
                     return { label: data["name"], value: value };

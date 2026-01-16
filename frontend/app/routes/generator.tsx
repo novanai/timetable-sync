@@ -47,7 +47,7 @@ const createLoadOptions = (group_type: string, category_type: string) => {
         timeoutId = setTimeout(async () => {
             try {
                 const res = await fetch(
-                    `http://localhost/api/v3/${group_type}/category/${category_type_id}/items?query=${inputValue}`
+                    `/api/v3/${group_type}/category/${category_type_id}/items?query=${inputValue}`
                 );
                 const data = await res.json();
 
