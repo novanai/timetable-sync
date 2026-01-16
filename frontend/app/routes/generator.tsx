@@ -11,6 +11,26 @@ export function meta({ }: Route.MetaArgs) {
     ];
 }
 
+const select_colours = {
+    primary: "var(--color-primary)",  // border active
+    // primary75: "",
+    // primary50: "",
+    primary25: "var(--color-base-300)",  // active select option background
+    danger: "var(--color-error-content)",  // remove option 'X'
+    dangerLight: "var(--color-error)",  // remove option 'X' background
+    neutral0: "var(--color-base-100)",  // select menu background
+    // neutral5: "",
+    neutral10: "var(--color-base-300)",  // selected option background
+    neutral20: "var(--color-base-content)",  // border, inner arrow
+    // neutral30: "",  // border hover
+    // neutral40: "",  // "no options" text
+    neutral50: "var(--color-base-content)",  // text
+    neutral60: "var(--color-base-content)",  // arrow active
+    // neutral70: "",
+    neutral80: "var(--color-base-content)",  // cursor, input text
+    // neutral90: "",
+}
+
 type Option = {
     label: string;
     value: string;
@@ -140,6 +160,13 @@ export default function Timetable() {
                                 styles={{
                                     menuPortal: (base) => ({ ...base, zIndex: 9999 }),
                                 }}
+                                theme={(theme) => ({
+                                    ...theme,
+                                    colors: {
+                                        ...theme.colors,
+                                        ...select_colours,
+                                    },
+                                })}
                             />
                         </TabPanel>
                     )
@@ -172,6 +199,13 @@ export default function Timetable() {
                                 styles={{
                                     menuPortal: (base) => ({ ...base, zIndex: 9999 }),
                                 }}
+                                theme={(theme) => ({
+                                    ...theme,
+                                    colors: {
+                                        ...theme.colors,
+                                        ...select_colours,
+                                    },
+                                })}
                             />
                         </TabPanel>
                     )
