@@ -28,7 +28,7 @@ export const links: Route.LinksFunction = () => [
 const pages = [
   { name: "Home", path: "/", external: false },
   { name: "Timetable Viewer", path: "/timetable", external: false },
-  { name: "API Documentation", path: "/api/api_docs", external: true },
+  { name: "API Documentation", path: "/api/docs", external: true },
 ]
 
 const themes = [
