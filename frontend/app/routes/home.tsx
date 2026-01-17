@@ -16,11 +16,11 @@ export default function Home() {
       </h1>
       <ol className="list-decimal ml-5 mb-3">
         <li>
-          On your computer, open <Link to="https://calendar.google.com/" className="text-secondary link link-hover">Google Calendar</Link>
+          On your computer, open <Link to="https://calendar.google.com/" className="link link-hover link-secondary">Google Calendar</Link>
         </li>
         <li>Go to Settings &gt; Add Calendar &gt; From URL</li>
         <li>
-          Enter the calendar's address, which you can <Link to="/generator" className="text-secondary link link-hover">generate here</Link>
+          Enter the calendar's address, which you can <Link to="/generator" className="link link-hover link-secondary">generate here</Link>
         </li>
       </ol>
       <p className="mb-3">To make sure you calendar syncs on mobile devices:</p>
@@ -29,7 +29,7 @@ export default function Home() {
           On Android devices: open Google Calendar, go to settings, select the calendar and enable the "Sync" option
         </li>
         <li>
-          On Apple devices: go to <Link to="https://calendar.google.com/calendar/syncselect" className="text-secondary link link-hover">
+          On Apple devices: go to <Link to="https://calendar.google.com/calendar/syncselect" className="link link-hover link-secondary">
             https://calendar.google.com/calendar/syncselect</Link>, select the calendar(s) you want to sync, and then save
         </li>
       </ul>
@@ -44,7 +44,7 @@ export default function Home() {
           Go to Calendars &gt; Add Calendar &gt; Add Subscription Calendar
         </li>
         <li>
-          Enter the calendar's address, which you can <Link to="/generator" className="text-secondary link link-hover">generate here</Link>,
+          Enter the calendar's address, which you can <Link to="/generator" className="link link-hover link-secondary">generate here</Link>,
           and then click "Subscribe"
         </li>
       </ol>
@@ -55,7 +55,7 @@ export default function Home() {
       </h1>
       <p>
         If you want to download an iCal file, just go to the calendar's address,
-        which you can <Link to="/generator" className="text-secondary link link-hover">generate here</Link>,
+        which you can <Link to="/generator" className="link link-hover link-secondary">generate here</Link>,
         and download the generated iCal file when prompted.
       </p>
     </div>
