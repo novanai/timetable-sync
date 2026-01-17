@@ -110,8 +110,33 @@ function parseCalendarJSON(data: any[]): Event[] {
     }));
 }
 
+function formatWeeks(weeks: number[]): string {
+    if (weeks.length === 0) return "";
+
+    const ranges: string[] = [];
+
+    let start = weeks[0];
+    let end = weeks[0];
+
+    for (let i = 1; i < weeks.length; i++) {
+        const current = weeks[i];
+
+        if (current === end + 1) {
+            end = current;
+        } else {
+            ranges.push(start === end ? `${start}` : `${start}-${end}`);
+            start = end = current;
+        }
+    }
+
+    ranges.push(start === end ? `${start}` : `${start}-${end}`);
+
+    return ranges.join(", ");
+}
+
 export default function Timetable() {
     const [events, setEvents] = useState<Event[]>([]);
+    const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
     const [courseOptions, setCourseOptions] = useState<readonly Option[]>([]);
     const [moduleOptions, setModuleOptions] = useState<readonly Option[]>([]);
@@ -126,6 +151,14 @@ export default function Timetable() {
         { id: "module", value: moduleOptions, setValue: setModuleOptions },
         { id: "location", value: locationOptions, setValue: setLocationOptions },
     ]
+
+    const handleEventClick = (event: Event) => {
+        setSelectedEvent(event);
+    };
+
+    const closeModal = () => {
+        setSelectedEvent(null);
+    };
 
     const location = useLocation();
 
@@ -190,74 +223,103 @@ export default function Timetable() {
     }, [courseOptions, moduleOptions, locationOptions]);
 
     return (
-        <main>
-            <Tabs className="mb-4">
-                <TabList>
-                    <Tab>Courses</Tab>
-                    <Tab>Modules</Tab>
-                    <Tab>Locations</Tab>
-                </TabList>
+        <>
+            <main>
+                <Tabs className="mb-4">
+                    <TabList>
+                        <Tab>Courses</Tab>
+                        <Tab>Modules</Tab>
+                        <Tab>Locations</Tab>
+                    </TabList>
 
-                {selects.map(({ id, value, setValue }) => {
-                    const loadOptions = useMemo(
-                        () => createLoadOptions(id),
-                        [id]
-                    );
+                    {selects.map(({ id, value, setValue }) => {
+                        const loadOptions = useMemo(
+                            () => createLoadOptions(id),
+                            [id]
+                        );
 
-                    return (
-                        <TabPanel key={id}>
-                            <AsyncSelect
-                                isMulti
-                                name={`select-${id}`}
-                                cacheOptions
-                                loadOptions={loadOptions}
-                                value={value}
-                                onChange={setValue}
-                                styles={{
-                                    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-                                }}
-                                theme={(theme) => ({
-                                    ...theme,
-                                    colors: {
-                                        ...theme.colors,
-                                        ...select_colours,
-                                    },
-                                })}
-                            />
-                        </TabPanel>
-                    )
-                })}
-            </Tabs>
+                        return (
+                            <TabPanel key={id}>
+                                <AsyncSelect
+                                    isMulti
+                                    name={`select-${id}`}
+                                    cacheOptions
+                                    loadOptions={loadOptions}
+                                    value={value}
+                                    onChange={setValue}
+                                    styles={{
+                                        menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                                    }}
+                                    theme={(theme) => ({
+                                        ...theme,
+                                        colors: {
+                                            ...theme.colors,
+                                            ...select_colours,
+                                        },
+                                    })}
+                                />
+                            </TabPanel>
+                        )
+                    })}
+                </Tabs>
 
-            <Calendar
-                localizer={localizer}
-                defaultDate={new Date()}
-                view={view}
-                views={[Views.WEEK, Views.DAY]}
-                onView={setView}
-                min={new Date(0, 0, 0, 8, 0)}
-                max={new Date(0, 0, 0, 19, 0)}
-                style={{ height: "960px" }}
-                events={events}
-                eventPropGetter={(event) => {
-                    const backgroundColor = colorHash.hex((event.title as string).split(" ")[0]);
+                <Calendar
+                    localizer={localizer}
+                    defaultDate={new Date()}
+                    view={view}
+                    views={[Views.WEEK, Views.DAY]}
+                    onView={setView}
+                    min={new Date(0, 0, 0, 8, 0)}
+                    max={new Date(0, 0, 0, 19, 0)}
+                    style={{ height: "960px" }}
+                    events={events}
+                    onSelectEvent={handleEventClick}
+                    eventPropGetter={(event) => {
+                        const backgroundColor = colorHash.hex((event.title as string).split(" ")[0]);
 
-                    return {
-                        style: {
-                            backgroundColor,
-                        },
-                    };
-                }}
-                components={{
-                    event: ({ event }) => (
-                        <div>
-                            <p><b>{event.title}</b></p>
-                            <p>📄 {event.resource.display.description}</p>
-                            <p>📍 {event.resource.display.location}</p>
-                        </div>
-                    )
-                }}
-            />
-        </main>
+                        return {
+                            style: {
+                                backgroundColor,
+                            },
+                        };
+                    }}
+                    components={{
+                        event: ({ event }) => (
+                            <div>
+                                <p><b>{event.title}</b></p>
+                                <p>📄 {event.resource.display.description}</p>
+                                <p>📍 {event.resource.display.location}</p>
+                            </div>
+                        )
+                    }}
+                />
+            </main>
+
+            {selectedEvent && (
+                <dialog className="modal modal-open">
+                    <div className="modal-box">
+                        <button
+                            className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+                            onClick={closeModal}
+                        >
+                            ✕
+                        </button>
+
+                        <h3 className="text-lg font-bold mb-2">{selectedEvent.title}</h3>
+                        <p>
+                            🕑 {selectedEvent.start && localizer.format(selectedEvent.start, "HH:mm")}-{selectedEvent.end && localizer.format(selectedEvent.end, "HH:mm")} • {selectedEvent.start && localizer.format(selectedEvent.start, "dddd, D MMMM YYYY")}
+                        </p>
+                        <p>📄 {selectedEvent.resource.display.description}</p>
+                        <p>📍 {selectedEvent.resource.display.location_long}</p>
+                        {selectedEvent.resource.staff_member && (<p>🧑‍🏫 Staff Member: {selectedEvent.resource.staff_member}</p>)}
+                        {selectedEvent.resource.weeks && (<p>🗓️ Weeks: {formatWeeks(selectedEvent.resource.weeks)}</p>)}
+                    </div>
+
+                    <form method="dialog" className="modal-backdrop">
+                        <button onClick={closeModal} className="cursor-default"></button>
+                    </form>
+                </dialog>
+            )}
+        </>
     );
 }
