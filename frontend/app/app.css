@@ -3,20 +3,19 @@
 @import "react-tabs/style/react-tabs.css";
 
 @plugin "daisyui" {
-  themes: winter --default, night --prefersdark;
+  themes: 
+    winter --default,
+    night --prefersdark,
+    bumblebee,
+    emerald,
+    corporate,
+    forest,
+    dracula
 }
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-}
-
-a.link {
-  color: var(--color-accent);
-}
-
-div.footer a.link {
-  color: unset;
 }
 
 .rbc-toolbar button {
@@ -59,7 +58,7 @@ div.footer a.link {
 }
 
 .rbc-today {
-  background-color: oklch(from var(--color-info) l c h / 0.25);
+  background-color: oklch(from var(--color-accent) l c h / 0.25);
 }
 
 .react-tabs__tab--selected {
