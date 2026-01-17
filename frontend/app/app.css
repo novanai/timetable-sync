@@ -33,6 +33,19 @@
   background: none;
 }
 
+.react-tabs__tab-list,
+.react-tabs__tab--selected,
+.rbc-toolbar button,
+.rbc-time-view,
+.rbc-time-header-content,
+.rbc-header,
+.rbc-time-content,
+.rbc-timeslot-group,
+.rbc-time-slot,
+.rbc-time-content > * + * > * {
+  border-color: oklch(from var(--color-neutral-content) l c h / 0.25) !important;
+}
+
 .rbc-allday-cell,
 .rbc-event-label {
   display: none;
