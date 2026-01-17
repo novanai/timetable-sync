@@ -1,8 +1,8 @@
-import type { OpenAsBlobOptions } from "node:fs";
 import type { Route } from "./+types/generator";
 import { useState, useEffect, useMemo } from "react";
 import AsyncSelect from 'react-select/async';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
+import { FaClipboard } from "react-icons/fa";
 
 export function meta({ }: Route.MetaArgs) {
     return [
@@ -84,8 +84,6 @@ const createLoadOptions = (group_type: string, category_type: string) => {
     };
 };
 
-
-
 export default function Timetable() {
     const [courseOptions, setCourseOptions] = useState<readonly Option[]>([]);
     const [moduleOptions, setModuleOptions] = useState<readonly Option[]>([]);
@@ -95,6 +93,9 @@ export default function Timetable() {
 
     const [timetableURL, setTimetableURL] = useState<string>("");
     const [cnsURL, setCnsURL] = useState<string>("");
+
+    const [timetableCopied, setTimetableCopied] = useState<boolean>(false);
+    const [cnsCopied, setCnsCopied] = useState<boolean>(false);
 
     const timetable_selects: Array<SelectConfig> = [
         { id: "course", value: courseOptions, setValue: setCourseOptions },
@@ -133,8 +134,22 @@ export default function Timetable() {
         setCnsURL(`${window.location.protocol}//${window.location.hostname}/api/v3/cns/events?${params.toString()}`)
     }, [clubOptions, societyOptions]);
 
+    const handleCopy = async (elementId: string, setValue: React.Dispatch<React.SetStateAction<boolean>>) => {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+
+        try {
+            await navigator.clipboard.writeText(el.innerText);
+            setValue(true);
+            setTimeout(() => setValue(false), 2000);
+        } catch (err) {
+            console.error("Copy failed", err);
+        }
+    };
+
     return (
-        <main>
+        <div className="mx-4 md:mx-16 lg:mx-32">
+            <h1 className="text-2xl font-bold mb-2">Timetable</h1>
             <Tabs className="mb-4">
                 <TabList>
                     {/* TODO: should be a map from selects */}
@@ -172,10 +187,18 @@ export default function Timetable() {
                     )
                 })}
             </Tabs>
-            <div>
+            <button
+                className={`btn btn-sm mb-2 ${timetableCopied ? "btn-success" : "btn-primary"}`}
+                onClick={() => handleCopy("timetable-url", setTimetableCopied)}
+            >
+                <span className="inline-flex items-center gap-1"><FaClipboard size={16} /> {timetableCopied ? "Copied!" : "Copy URL"}</span>
+                
+            </button>
+            <div id="timetable-url" className="mb-8">
                 {timetableURL}
             </div>
 
+            <h1 className="text-2xl font-bold mb-2">Clubs & Societies</h1>
             <Tabs className="mb-4">
                 <TabList>
                     <Tab>Clubs</Tab>
@@ -211,9 +234,15 @@ export default function Timetable() {
                     )
                 })}
             </Tabs>
-            <div>
+            <button
+                className={`btn btn-sm mb-2 ${cnsCopied ? "btn-success" : "btn-primary"}`}
+                onClick={() => handleCopy("cns-url", setCnsCopied)}
+            >
+                <span className="inline-flex items-center gap-1"><FaClipboard size={16} /> {cnsCopied ? "Copied!" : "Copy URL"}</span>
+            </button>
+            <div id="cns-url" className="mb-8">
                 {cnsURL}
             </div>
-        </main>
+        </div>
     );
 }
