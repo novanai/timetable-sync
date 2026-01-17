@@ -21,11 +21,11 @@ const select_colours = {
     neutral0: "var(--color-base-100)",  // select menu background
     // neutral5: "",
     neutral10: "var(--color-base-300)",  // selected option background
-    neutral20: "var(--color-base-content)",  // border, inner arrow
+    neutral20: "oklch(from var(--color-neutral-content) l c h / 0.25)",  // border, inner arrow
     // neutral30: "",  // border hover
     // neutral40: "",  // "no options" text
     neutral50: "var(--color-base-content)",  // text
-    neutral60: "var(--color-base-content)",  // arrow active
+    neutral60: "oklch(from var(--color-neutral-content) l c h / 0.25)",  // arrow active
     // neutral70: "",
     neutral80: "var(--color-base-content)",  // cursor, input text
     // neutral90: "",
@@ -82,6 +82,14 @@ const createLoadOptions = (group_type: string, category_type: string) => {
             }
         }, 300);
     };
+};
+
+const noOptionsMessage = (categoryType: string) => ({ inputValue }: { inputValue: string }) => {
+    if (!inputValue) {
+        return `Search for a ${categoryType}...`;
+    }
+
+    return `No ${categoryType} matching '${inputValue}'`;
 };
 
 export default function Timetable() {
@@ -172,6 +180,8 @@ export default function Timetable() {
                                 loadOptions={loadOptions}
                                 value={value}
                                 onChange={setValue}
+                                placeholder={`Choose ${id}...`}
+                                noOptionsMessage={noOptionsMessage(id)}
                                 styles={{
                                     menuPortal: (base) => ({ ...base, zIndex: 9999 }),
                                 }}
@@ -219,6 +229,8 @@ export default function Timetable() {
                                 loadOptions={loadOptions}
                                 value={value}
                                 onChange={setValue}
+                                placeholder={`Choose ${id}...`}
+                                noOptionsMessage={noOptionsMessage(id)}
                                 styles={{
                                     menuPortal: (base) => ({ ...base, zIndex: 9999 }),
                                 }}
