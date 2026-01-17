@@ -195,7 +195,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {children}
           </div>
 
-          <div className="footer footer-center bg-primary text-primary-content p-4">
+          <div className="footer footer-center bg-primary text-primary-content p-4 mt-4">
             <div>
               <p>
                 Made with ❤️ by <a href="https://github.com/novanai" className="link link-hover">nova</a>

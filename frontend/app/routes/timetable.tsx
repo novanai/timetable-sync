@@ -225,43 +225,45 @@ export default function Timetable() {
     return (
         <>
             <main>
-                <Tabs className="mb-4">
-                    <TabList>
-                        <Tab>Courses</Tab>
-                        <Tab>Modules</Tab>
-                        <Tab>Locations</Tab>
-                    </TabList>
+                <div className="mx-4 md:mx-16 lg:mx-32">
+                    <Tabs className="mb-4">
+                        <TabList>
+                            <Tab>Courses</Tab>
+                            <Tab>Modules</Tab>
+                            <Tab>Locations</Tab>
+                        </TabList>
 
-                    {selects.map(({ id, value, setValue }) => {
-                        const loadOptions = useMemo(
-                            () => createLoadOptions(id),
-                            [id]
-                        );
+                        {selects.map(({ id, value, setValue }) => {
+                            const loadOptions = useMemo(
+                                () => createLoadOptions(id),
+                                [id]
+                            );
 
-                        return (
-                            <TabPanel key={id}>
-                                <AsyncSelect
-                                    isMulti
-                                    name={`select-${id}`}
-                                    cacheOptions
-                                    loadOptions={loadOptions}
-                                    value={value}
-                                    onChange={setValue}
-                                    styles={{
-                                        menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-                                    }}
-                                    theme={(theme) => ({
-                                        ...theme,
-                                        colors: {
-                                            ...theme.colors,
-                                            ...select_colours,
-                                        },
-                                    })}
-                                />
-                            </TabPanel>
-                        )
-                    })}
-                </Tabs>
+                            return (
+                                <TabPanel key={id}>
+                                    <AsyncSelect
+                                        isMulti
+                                        name={`select-${id}`}
+                                        cacheOptions
+                                        loadOptions={loadOptions}
+                                        value={value}
+                                        onChange={setValue}
+                                        styles={{
+                                            menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                                        }}
+                                        theme={(theme) => ({
+                                            ...theme,
+                                            colors: {
+                                                ...theme.colors,
+                                                ...select_colours,
+                                            },
+                                        })}
+                                    />
+                                </TabPanel>
+                            )
+                        })}
+                    </Tabs>
+                </div>
 
                 <Calendar
                     localizer={localizer}
