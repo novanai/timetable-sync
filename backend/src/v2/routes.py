@@ -2,6 +2,7 @@ import collections
 import datetime
 from typing import Annotated
 
+import msgspec
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from timetable import cns, models, utils
 from timetable.api import API as TimetableAPI  # noqa: N811
@@ -29,21 +30,39 @@ async def get_all_category_items(
     cns_api: Annotated[CNSAPI, Depends(get_cns_api)],
     category_type: Annotated[str, Path()],
     query: Annotated[str | None, Query()] = None,
-) -> list[utils.BasicCategoryItem]:
+) -> Response:
     if category_type not in ("course", "module", "location", "club", "society"):
         raise HTTPException(status_code=400, detail="Invalid value provided.")
 
     if category_type in CATEGORY_TYPES:
-        categories = await utils.get_basic_category_items(
-            timetable_api, CATEGORY_TYPES[category_type], query
+        category = await timetable_api.get_category(
+            CATEGORY_TYPES[category_type],
+            query=query,
+            items_type=models.BasicCategoryItem,
         )
+        if not category:
+            category = await timetable_api.fetch_category(
+                CATEGORY_TYPES[category_type],
+                query=query,
+                items_type=models.BasicCategoryItem,
+            )
+
+        items = category.items
 
     else:
-        categories = await cns_api.fetch_unlocked_groups(cns.GroupType(category_type))
-        if query:
-            categories = cns.filter_category_results(categories, query)
+        group_type = cns.GroupType(category_type)
+        items = await cns_api.get_group_items(group_type, query)
+        if not items:
+            items = await cns_api.fetch_group_items(group_type, query)
 
-    return categories
+        items = [
+            models.BasicCategoryItem(name=item.name, identity=item.id) for item in items
+        ]
+
+    return Response(
+        content=msgspec.json.encode(items),
+        media_type="application/json",
+    )
 
 
 @router.get(
@@ -93,8 +112,9 @@ async def get_calendar_events(
     display: Annotated[
         bool | None,
         Query(
-            description="Whether or not to include additional display info.",
+            description="Deprecated. Display details are included regardless.\n\nWhether or not to include additional display info.",
             examples=["true"],
+            deprecated=True,
         ),
     ] = None,
     start: Annotated[
@@ -112,16 +132,19 @@ async def get_calendar_events(
         ),
     ] = None,
 ) -> Response:
-    format_ = models.ResponseFormat.from_str(_format if _format else None)
-    start_date = datetime.datetime.fromisoformat(start) if start else None
-    end_date = datetime.datetime.fromisoformat(end) if end else None
+    if _format is None:
+        _format = "ical"
+
+    if _format not in {"ical", "json"}:
+        raise HTTPException(status_code=400, detail=f"Invalid format '{_format}'.")
 
     if not course and not courses and not modules and not locations:
         raise HTTPException(
             status_code=400, detail="No courses, modules or locations provided."
         )
-    if format_ is models.ResponseFormat.UNKNOWN:
-        raise HTTPException(status_code=400, detail=f"Invalid format '{format_}'.")
+
+    start_date = datetime.datetime.fromisoformat(start) if start else None
+    end_date = datetime.datetime.fromisoformat(end) if end else None
 
     codes: dict[models.CategoryType, list[str]] = collections.defaultdict(list)
 
@@ -141,17 +164,16 @@ async def get_calendar_events(
     }
     events = await utils.gather_events(identities, start_date, end_date, timetable_api)
 
-    if format_ is models.ResponseFormat.ICAL:
+    if _format == "ical":
         timetable = utils.generate_ical_file(events)
-        media_type = "text/calendar"
-    else:
-        assert format_ is models.ResponseFormat.JSON
-        timetable = utils.generate_json_file(events, display)
-        media_type = "application/json"
-
+        return Response(
+            content=timetable,
+            media_type="text/calendar",
+        )
+    assert _format == "json"
     return Response(
-        content=timetable,
-        media_type=media_type,
+        content=msgspec.json.encode(events),
+        media_type="application/json",
     )
 
 
@@ -175,11 +197,18 @@ async def get_cns_calendar_events(
         (cns.GroupType.SOCIETY, society_ids),
         (cns.GroupType.CLUB, club_ids),
     ):
-        for id_ in ids:
-            group = await cns_api.fetch_group_info(group_type, id_)
-            events[group.name].extend(
-                await cns_api.fetch_group_events_activities_fixtures(group_type, id_)
-            )
+        for item_id in ids:
+            item = await cns_api.get_item(item_id)
+            if not item:
+                item = await cns_api.fetch_item(group_type, item_id)
+
+            events_ = await cns_api.get_group_events_activities_fixtures(item_id)
+            if events_ is None:
+                events_ = await cns_api.fetch_group_events_activities_fixtures(
+                    group_type, item_id
+                )
+
+            events[item.name].extend(events_)
 
     calendar = cns.generate_ical_file(events)
 

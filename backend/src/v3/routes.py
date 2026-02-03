@@ -1,15 +1,19 @@
 import collections
 import datetime
 import enum
+import logging
 from typing import Annotated
 from uuid import UUID
 
+import msgspec
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Response
 from timetable import cns, models, utils
 from timetable.api import API as TimetableAPI  # noqa: N811
 from timetable.cns import API as CNSAPI
 
 from src.dependencies import get_cns_api, get_timetable_api
+
+logger = logging.getLogger(__name__)
 
 
 class ExtraDetails(enum.Enum):
@@ -26,8 +30,19 @@ async def get_timetable_category_items(
     timetable_api: Annotated[TimetableAPI, Depends(get_timetable_api)],
     category_type: Annotated[models.CategoryType, Path()],
     query: Annotated[str | None, Query()] = None,
-) -> list[utils.BasicCategoryItem]:
-    return await utils.get_basic_category_items(timetable_api, category_type, query)
+) -> Response:
+    category = await timetable_api.get_category(
+        category_type, query=query, items_type=models.BasicCategoryItem
+    )
+    if not category:
+        category = await timetable_api.fetch_category(
+            category_type, query=query, items_type=models.BasicCategoryItem
+        )
+
+    return Response(
+        content=msgspec.json.encode(category.items),
+        media_type="application/json",
+    )
 
 
 @timetable_router.get("/category/{category_type}/items/{item_id}")
@@ -35,10 +50,14 @@ async def get_timetable_category_item(
     timetable_api: Annotated[TimetableAPI, Depends(get_timetable_api)],
     category_type: Annotated[models.CategoryType, Path()],
     item_id: Annotated[UUID, Path()],
-) -> models.CategoryItem:
-    return await timetable_api.get_category_item(
-        category_type, str(item_id)
+) -> Response:
+    item = await timetable_api.get_category_item(
+        str(item_id)
     ) or await timetable_api.fetch_category_item(category_type, str(item_id))
+    return Response(
+        content=msgspec.json.encode(item),
+        media_type="application/json",
+    )
 
 
 @timetable_router.get("/category/{category_type}/items/{item_id}/events")
@@ -62,8 +81,8 @@ async def get_timetable_category_item_events(
     else:
         assert media_type == "application/json"
         # TODO: handle extra_details
-        display = extra_details is ExtraDetails.ALL
-        timetable = utils.generate_json_file(events, display)
+        # display = extra_details is ExtraDetails.ALL
+        timetable = msgspec.json.encode(events)
 
     return Response(
         content=timetable,
@@ -114,8 +133,8 @@ async def get_timetable_calendar_events(
     else:
         assert media_type == "application/json"
         # TODO: handle extra_details
-        display = extra_details is ExtraDetails.ALL
-        timetable = utils.generate_json_file(events, display)
+        # display = extra_details is ExtraDetails.ALL
+        timetable = msgspec.json.encode(events)
 
     return Response(
         content=timetable,
@@ -131,22 +150,31 @@ async def get_cns_category_items(
     cns_api: Annotated[CNSAPI, Depends(get_cns_api)],
     category_type: Annotated[cns.GroupType, Path()],
     query: Annotated[str | None, Query()] = None,
-) -> list[utils.BasicCategoryItem]:
-    categories = await cns_api.fetch_unlocked_groups(category_type)
+) -> Response:
+    items = await cns_api.get_group_items(category_type, query)
+    if not items:
+        items = await cns_api.fetch_group_items(category_type, query)
 
-    if query:
-        categories = cns.filter_category_results(categories, query)
-
-    return categories
+    return Response(
+        content=msgspec.json.encode(items),
+        media_type="application/json",
+    )
 
 
 @cns_router.get("/category/{category_type}/items/{item_id}")
 async def get_cns_category_item(
     cns_api: Annotated[CNSAPI, Depends(get_cns_api)],
     category_type: Annotated[cns.GroupType, Path()],
-    item_id: Annotated[UUID, Path()],
-) -> utils.BasicCategoryItem:
-    return await cns_api.fetch_group_info(category_type, str(item_id))
+    item_id: Annotated[str, Path()],
+) -> Response:
+    item = await cns_api.get_item(item_id)
+    if not item:
+        item = await cns_api.fetch_item(category_type, item_id)
+
+    return Response(
+        content=msgspec.json.encode(item),
+        media_type="application/json",
+    )
 
 
 @cns_router.get(
@@ -159,7 +187,7 @@ async def get_cns_calendar_events(
 ) -> Response:
     if not (society or club):
         raise HTTPException(
-            status_code=400, detail="No society(s) or club(s) provided."
+            status_code=400, detail="No club(s) or society(s) provided."
         )
 
     events: dict[str, list[cns.Event | cns.Activity | cns.Fixture]] = (
@@ -170,11 +198,18 @@ async def get_cns_calendar_events(
         (cns.GroupType.SOCIETY, society),
         (cns.GroupType.CLUB, club),
     ):
-        for id_ in ids:
-            group = await cns_api.fetch_group_info(group_type, id_)
-            events[group.name].extend(
-                await cns_api.fetch_group_events_activities_fixtures(group_type, id_)
-            )
+        for item_id in ids:
+            item = await cns_api.get_item(item_id)
+            if not item:
+                item = await cns_api.fetch_item(group_type, item_id)
+
+            events_ = await cns_api.get_group_events_activities_fixtures(item_id)
+            if events_ is None:
+                events_ = await cns_api.fetch_group_events_activities_fixtures(
+                    group_type, item_id
+                )
+
+            events[item.name].extend(events_)
 
     calendar = cns.generate_ical_file(events)
 
