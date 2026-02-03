@@ -8,7 +8,8 @@ authors = [{ name = "nova" }]
 dependencies = [
     "aiohttp>=3.13.3",
     "fastapi[standard]>=0.128.0",
-    "granian[uvloop]>=2.6.1",
+    "granian[uvloop]>=2.7.0",
+    "msgspec>=0.20.0",
     "timetable-sync-api",
 ]
 
@@ -18,8 +19,8 @@ Repository = "https://github.com/novanai/timetable-sync"
 [dependency-groups]
 dev = [
     "pyright>=1.1.407",
-    "ruff>=0.14.13",
-    "uv>=0.9.26",
+    "ruff>=0.15.0",
+    "uv>=0.9.29",
 ]
 nox = [
     "nox>=2025.11.12",
@@ -73,7 +74,7 @@ convention = "numpy"
 required-version = "~=0.9"
 
 [tool.uv.sources]
-timetable-sync-api = { git = "https://github.com/novanai/timetable-sync-api" }
+timetable-sync-api = { git = "https://github.com/novanai/timetable-sync-api", branch = "v3" }
 
 [tool.pyright]
 pythonVersion = "3.13"

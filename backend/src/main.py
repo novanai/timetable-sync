@@ -1,13 +1,17 @@
 import logging
+import os
 import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
-from timetable import utils
-from timetable.models import CategoryType
+from fastapi.middleware.cors import CORSMiddleware
+from timetable.api import API as TimetableAPI  # noqa: N811
+from timetable.cache import ValkeyCache
+from timetable.cns import API as CNSAPI
+from timetable.cns import GroupType
+from timetable.models import BasicCategoryItem, CategoryType
 
-from src.dependencies import get_cns_api, get_timetable_api
 from src.v2.routes import router as v2_router
 from src.v3.routes import cns_router as v3_cns_router
 from src.v3.routes import timetable_router as v3_timetable_router
@@ -15,28 +19,51 @@ from src.v3.routes import timetable_router as v3_timetable_router
 logger = logging.getLogger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
-    get_timetable_api_context = asynccontextmanager(get_timetable_api)
-    async with get_timetable_api_context() as timetable_api:
-        for category_type in (
-            CategoryType.PROGRAMMES_OF_STUDY,
-            CategoryType.MODULES,
-            CategoryType.LOCATIONS,
-        ):
-            logger.info(f"loading category '{category_type.name}'")
-            await utils.get_basic_category_items(timetable_api, category_type)
+async def load_all_categories_to_cache(timetable_api: TimetableAPI, cns_api: CNSAPI):
+    for category_type in (
+        CategoryType.PROGRAMMES_OF_STUDY,
+        CategoryType.MODULES,
+        CategoryType.LOCATIONS,
+    ):
+        logger.info(f"loading timetable category '{category_type.name}'")
 
-    logger.info("loaded all categories")
+        if not (
+            await timetable_api.get_category(
+                category_type, items_type=BasicCategoryItem
+            )
+        ):
+            await timetable_api.fetch_category(
+                category_type, items_type=BasicCategoryItem
+            )
+
+    logger.info("loaded all timetable categories")
+
+    for group_type in (GroupType.CLUB, GroupType.SOCIETY):
+        logger.info(f"loading cns category '{group_type.name}'")
+
+        if not (await cns_api.get_group_items(group_type)):
+            await cns_api.fetch_group_items(group_type)
+
+    logger.info("loaded all cns categories")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    valkey_cache = await ValkeyCache.create(
+        os.environ["VALKEY_HOST"], int(os.environ["VALKEY_PORT"])
+    )
+    timetable_api = TimetableAPI(valkey_cache)
+    cns_api = CNSAPI(os.environ["CNS_ADDRESS"], valkey_cache)
+
+    await load_all_categories_to_cache(timetable_api, cns_api)
+
+    app.state.timetable_api = timetable_api
+    app.state.cns_api = cns_api
 
     yield
 
-    async with get_timetable_api_context() as timetable_api:
-        await timetable_api.session.close()
-
-    get_cns_api_context = asynccontextmanager(get_cns_api)
-    async with get_cns_api_context() as cns_api:
-        await cns_api.session.close()
+    await timetable_api.session.close()
+    await cns_api.session.close()
 
 
 OPENAPI_TAGS = [
@@ -55,6 +82,23 @@ app.include_router(v2_router, prefix="/api", tags=["v2"], deprecated=True)
 app.include_router(v3_timetable_router, prefix="/api/v3", tags=["v3"])
 app.include_router(v3_cns_router, prefix="/api/v3", tags=["v3"])
 
+# TODO: for testing only, remove before prod
+origins = [
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://timetable.redbrick.dcu.ie",
+    "https://timetable-test.redbrick.dcu.ie",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.get("/api/healthcheck")
 async def healthcheck() -> str:
@@ -70,6 +114,8 @@ async def log_request_process_times(
     end_time = time.perf_counter()
     execution_time_ms = (end_time - start_time) * 1000
 
-    logger.info(f"request to '{request.url.path}?{request.url.query}' took {execution_time_ms:.4f} ms")
+    logger.info(
+        f"request to '{request.url.path}{f"?{request.url.query}" if request.url.query else ""}' took {execution_time_ms:.4f} ms"
+    )
 
     return response
