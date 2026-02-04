@@ -22,21 +22,36 @@ class ExtraDetails(enum.Enum):
     ONLY = "only"
 
 
+class CategoryType(enum.Enum):
+    COURSE = "course"
+    MODULE = "module"
+    LOCATION = "location"
+
+    def to_model(self) -> models.CategoryType:
+        match self:
+            case CategoryType.COURSE:
+                return models.CategoryType.PROGRAMMES_OF_STUDY
+            case CategoryType.MODULE:
+                return models.CategoryType.MODULES
+            case CategoryType.LOCATION:
+                return models.CategoryType.LOCATIONS
+
+
 timetable_router = APIRouter(prefix="/timetable")
 
 
 @timetable_router.get("/category/{category_type}/items")
 async def get_timetable_category_items(
     timetable_api: Annotated[TimetableAPI, Depends(get_timetable_api)],
-    category_type: Annotated[models.CategoryType, Path()],
+    category_type: Annotated[CategoryType, Path()],
     query: Annotated[str | None, Query()] = None,
 ) -> Response:
     category = await timetable_api.get_category(
-        category_type, query=query, items_type=models.BasicCategoryItem
+        category_type.to_model(), query=query, items_type=models.BasicCategoryItem
     )
     if not category:
         category = await timetable_api.fetch_category(
-            category_type, query=query, items_type=models.BasicCategoryItem
+            category_type.to_model(), query=query, items_type=models.BasicCategoryItem
         )
 
     return Response(
@@ -48,12 +63,12 @@ async def get_timetable_category_items(
 @timetable_router.get("/category/{category_type}/items/{item_id}")
 async def get_timetable_category_item(
     timetable_api: Annotated[TimetableAPI, Depends(get_timetable_api)],
-    category_type: Annotated[models.CategoryType, Path()],
+    category_type: Annotated[CategoryType, Path()],
     item_id: Annotated[UUID, Path()],
 ) -> Response:
     item = await timetable_api.get_category_item(
         str(item_id)
-    ) or await timetable_api.fetch_category_item(category_type, str(item_id))
+    ) or await timetable_api.fetch_category_item(category_type.to_model(), str(item_id))
     return Response(
         content=msgspec.json.encode(item),
         media_type="application/json",
@@ -63,7 +78,7 @@ async def get_timetable_category_item(
 @timetable_router.get("/category/{category_type}/items/{item_id}/events")
 async def get_timetable_category_item_events(
     timetable_api: Annotated[TimetableAPI, Depends(get_timetable_api)],
-    category_type: Annotated[models.CategoryType, Path()],
+    category_type: Annotated[CategoryType, Path()],
     item_id: Annotated[UUID, Path()],
     start: Annotated[datetime.datetime | None, Query()] = None,
     end: Annotated[datetime.datetime | None, Query()] = None,
@@ -73,7 +88,7 @@ async def get_timetable_category_item_events(
     if media_type not in {"text/calendar", "application/json"}:
         raise HTTPException(400, "Invalid media type provided.")
 
-    identities = {category_type: [str(item_id)]}
+    identities = {category_type.to_model(): [str(item_id)]}
     events = await utils.gather_events(identities, start, end, timetable_api)
 
     if media_type == "text/calendar":

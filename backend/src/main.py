@@ -115,7 +115,7 @@ async def log_request_process_times(
     execution_time_ms = (end_time - start_time) * 1000
 
     logger.info(
-        f"request to '{request.url.path}{f"?{request.url.query}" if request.url.query else ""}' took {execution_time_ms:.4f} ms"
+        f"request to '{request.url.path}{f'?{request.url.query}' if request.url.query else ''}' took {execution_time_ms:.4f} ms"
     )
 
     return response
