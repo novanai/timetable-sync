@@ -42,16 +42,7 @@ type SelectConfig = {
     setValue: React.Dispatch<React.SetStateAction<readonly Option[]>>;
 };
 
-const category_type_mapping = new Map()
-category_type_mapping.set("module", "525fe79b-73c3-4b5c-8186-83c652b3adcc")
-category_type_mapping.set("location", "1e042cb1-547d-41d4-ae93-a1f2c3d34538")
-category_type_mapping.set("course", "241e4d36-60e0-49f8-b27e-99416745d98d")
-category_type_mapping.set("society", "society")
-category_type_mapping.set("club", "club")
-
 const createLoadOptions = (group_type: string, category_type: string) => {
-    const category_type_id = category_type_mapping.get(category_type);
-
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     return (inputValue: string, callback: (options: Option[]) => void) => {
@@ -67,7 +58,7 @@ const createLoadOptions = (group_type: string, category_type: string) => {
         timeoutId = setTimeout(async () => {
             try {
                 const res = await fetch(
-                    `/api/v3/${group_type}/category/${category_type_id}/items?query=${inputValue}`
+                    `/api/v3/${group_type}/category/${category_type}/items?query=${inputValue}`
                 );
                 const data = await res.json();
 
