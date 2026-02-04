@@ -74,6 +74,11 @@
   background-color: oklch(from var(--color-accent) l c h / 0.25);
 }
 
+.rbc-current-time-indicator {
+  background-color: red;
+  z-index: 0;
+}
+
 .react-tabs__tab--selected {
   color: var(--color-base-content);
   background-color: var(--color-base-100);
