@@ -109,7 +109,7 @@ const noOptionsMessage = (categoryType: string) => ({ inputValue }: { inputValue
 
 function parseCalendarJSON(data: any[]): Event[] {
     return data.map(event => ({
-        title: event.display.summary,
+        title: event.extras.summary,
         start: new Date(event.start),
         end: new Date(event.end),
         allDay: false,
@@ -301,8 +301,8 @@ export default function Timetable() {
                         event: ({ event }) => (
                             <div>
                                 <p><b>{event.title}</b></p>
-                                <p>📄 {event.resource.display.description}</p>
-                                <p>📍 {event.resource.display.location}</p>
+                                <p>📄 {event.resource.extras.description}</p>
+                                <p>📍 {event.resource.extras.location}</p>
                             </div>
                         )
                     }}
@@ -323,8 +323,8 @@ export default function Timetable() {
                         <p>
                             🕑 {selectedEvent.start && localizer.format(selectedEvent.start, "HH:mm")}-{selectedEvent.end && localizer.format(selectedEvent.end, "HH:mm")} • {selectedEvent.start && localizer.format(selectedEvent.start, "dddd, D MMMM YYYY")}
                         </p>
-                        <p>📄 {selectedEvent.resource.display.description}</p>
-                        <p>📍 {selectedEvent.resource.display.location_long}</p>
+                        <p>📄 {selectedEvent.resource.extras.description}</p>
+                        <p>📍 {selectedEvent.resource.extras.location_long}</p>
                         {selectedEvent.resource.staff_member && (<p>🧑‍🏫 Staff Member: {selectedEvent.resource.staff_member}</p>)}
                         {selectedEvent.resource.weeks && (<p>🗓️ Weeks: {formatWeeks(selectedEvent.resource.weeks)}</p>)}
                     </div>
