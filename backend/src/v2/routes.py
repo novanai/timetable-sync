@@ -165,7 +165,7 @@ async def get_calendar_events(
     events = await utils.gather_events(identities, start_date, end_date, timetable_api)
 
     if _format == "ical":
-        timetable = utils.generate_ical_file(events)
+        timetable = utils.to_ics_file(events)
         return Response(
             content=timetable,
             media_type="text/calendar",

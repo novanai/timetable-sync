@@ -92,7 +92,7 @@ async def get_timetable_category_item_events(
     events = await utils.gather_events(identities, start, end, timetable_api)
 
     if media_type == "text/calendar":
-        timetable = utils.generate_ical_file(events)
+        timetable = utils.to_ics_file(events)
     else:
         assert media_type == "application/json"
         # TODO: handle extra_details
@@ -144,7 +144,7 @@ async def get_timetable_calendar_events(
     events = await utils.gather_events(identities, start, end, timetable_api)
 
     if media_type == "text/calendar":
-        timetable = utils.generate_ical_file(events)
+        timetable = utils.to_ics_file(events)
     else:
         assert media_type == "application/json"
         # TODO: handle extra_details
