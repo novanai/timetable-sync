@@ -65,7 +65,7 @@ const createLoadOptions = (group_type: string, category_type: string) => {
                 callback(
                     data.map((item: any) => ({
                         label: item.name,
-                        value: item.identity,
+                        value: item.identity ?? item.id,
                     }))
                 );
             } catch (e) {
