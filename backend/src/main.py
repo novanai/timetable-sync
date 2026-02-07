@@ -1,9 +1,11 @@
+import datetime
 import logging
 import os
 import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Awaitable, Callable
-
+import asyncio
+import glide
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from timetable.api import API as TimetableAPI  # noqa: N811
@@ -18,8 +20,9 @@ from src.v3.routes import timetable_router as v3_timetable_router
 
 logger = logging.getLogger(__name__)
 
-
-async def load_all_categories_to_cache(timetable_api: TimetableAPI, cns_api: CNSAPI):
+async def load_all_categories_to_cache(
+    timetable_api: TimetableAPI, cns_api: CNSAPI
+) -> None:
     for category_type in (
         CategoryType.PROGRAMMES_OF_STUDY,
         CategoryType.MODULES,
@@ -46,6 +49,37 @@ async def load_all_categories_to_cache(timetable_api: TimetableAPI, cns_api: CNS
 
     logger.info("loaded all cns categories")
 
+async def populate_cache(
+    timetable_api: TimetableAPI, cns_api: CNSAPI
+) -> None:
+    client = timetable_api.cache.client
+
+    if await client.exists(["cache_ready"]):
+        logger.info("cache ready")
+        return
+    
+    got_lock = await client.set(
+        "cache_loading",
+        "1",
+        conditional_set=glide.ConditionalChange.ONLY_IF_DOES_NOT_EXIST,
+        expiry=glide.ExpirySet(glide.ExpiryType.SEC, datetime.timedelta(seconds=150)),
+    )
+
+    if got_lock:
+        try:
+            await load_all_categories_to_cache(timetable_api, cns_api)
+            await client.set("cache_ready", "1", expiry=glide.ExpirySet(glide.ExpiryType.SEC, datetime.timedelta(days=1)))
+        finally:
+            await client.delete(["cache_loading"])
+        return
+    else:
+        logger.info("waiting for cache")
+
+    while not await client.exists(["cache_ready"]):
+        await asyncio.sleep(0.2)
+
+    logger.info("cache ready")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -55,7 +89,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     timetable_api = TimetableAPI(valkey_cache)
     cns_api = CNSAPI(os.environ["CNS_ADDRESS"], valkey_cache)
 
-    await load_all_categories_to_cache(timetable_api, cns_api)
+    await populate_cache(timetable_api, cns_api)
 
     app.state.timetable_api = timetable_api
     app.state.cns_api = cns_api
