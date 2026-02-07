@@ -11,6 +11,7 @@ dependencies = [
     "granian[uvloop]>=2.7.0",
     "msgspec>=0.20.0",
     "timetable-sync-api",
+    "valkey-glide>=2.2.6",
 ]
 
 [project.urls]

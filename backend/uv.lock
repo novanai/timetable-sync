@@ -1299,7 +1299,7 @@ wheels = [
 [[package]]
 name = "timetable-sync-api"
 version = "0.0.0"
-source = { git = "https://github.com/novanai/timetable-sync-api?branch=v3#53d8bbe2df2b3133f0aa355d2b407f86da0c1dab" }
+source = { git = "https://github.com/novanai/timetable-sync-api?branch=v3#43b18a2e959639d335f83b72aa1fcaebd080b64d" }
 dependencies = [
     { name = "aiohttp" },
     { name = "icalendar" },
@@ -1317,6 +1317,7 @@ dependencies = [
     { name = "granian", extra = ["uvloop"] },
     { name = "msgspec" },
     { name = "timetable-sync-api" },
+    { name = "valkey-glide" },
 ]
 
 [package.dev-dependencies]
@@ -1336,6 +1337,7 @@ requires-dist = [
     { name = "granian", extras = ["uvloop"], specifier = ">=2.7.0" },
     { name = "msgspec", specifier = ">=0.20.0" },
     { name = "timetable-sync-api", git = "https://github.com/novanai/timetable-sync-api?branch=v3" },
+    { name = "valkey-glide", specifier = ">=2.2.6" },
 ]
 
 [package.metadata.requires-dev]
