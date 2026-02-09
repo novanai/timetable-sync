@@ -313,12 +313,12 @@ export default function Timetable() {
 
                         <h3 className="text-lg font-bold mb-2">{selectedEvent.title}</h3>
                         <p>
-                            🕑 {selectedEvent.start && localizer.format(selectedEvent.start, "HH:mm")}-{selectedEvent.end && localizer.format(selectedEvent.end, "HH:mm")} • {selectedEvent.start && localizer.format(selectedEvent.start, "dddd, D MMMM YYYY")}
+                            🕑 <b>Time:</b> {selectedEvent.start && localizer.format(selectedEvent.start, "HH:mm")}-{selectedEvent.end && localizer.format(selectedEvent.end, "HH:mm")} • {selectedEvent.start && localizer.format(selectedEvent.start, "dddd, D MMMM YYYY")}
                         </p>
-                        <p>📄 {selectedEvent.resource.extras.description}</p>
-                        <p>📍 {selectedEvent.resource.extras.location_long}</p>
-                        {selectedEvent.resource.staff_member && (<p>🧑‍🏫 Staff Member: {selectedEvent.resource.staff_member}</p>)}
-                        {selectedEvent.resource.weeks && (<p>🗓️ Weeks: {formatWeeks(selectedEvent.resource.weeks)}</p>)}
+                        <p>📄 <b>Details:</b> {selectedEvent.resource.extras.description}</p>
+                        <p>📍 <b>Location:</b> {selectedEvent.resource.extras.location_long}</p>
+                        {selectedEvent.resource.staff_member && (<p>🧑‍🏫 <b>Staff:</b> {selectedEvent.resource.staff_member}</p>)}
+                        {selectedEvent.resource.weeks && (<p>🗓️ <b>Weeks:</b> {formatWeeks(selectedEvent.resource.weeks)}</p>)}
                     </div>
 
                     <form method="dialog" className="modal-backdrop">
