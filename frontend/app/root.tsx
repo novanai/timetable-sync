@@ -198,10 +198,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="footer footer-center bg-primary text-primary-content p-4 mt-4">
             <div>
               <p>
-                Made with ❤️ by <a href="https://github.com/novanai" className="link link-hover">nova</a>
+                Made with ❤️ by <a href="https://github.com/novanai" className="link">nova</a>
               </p>
               <p>
-                Powered by <a href="https://redbrick.dcu.ie" className="link link-hover">Redbrick</a>
+                Powered by <a href="https://redbrick.dcu.ie" className="link">Redbrick</a>
               </p>
             </div>
           </div>
