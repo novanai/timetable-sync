@@ -5,10 +5,10 @@ import enum
 import arc
 import hikari
 import miru
-
-from src.database import Database
 from timetable import api as api_
 from timetable import models, utils
+
+from src.database import Database
 
 plugin = arc.GatewayPlugin("Preferences")
 
@@ -84,7 +84,7 @@ async def build_response(
             )
         )
         embed_description.append(
-            f"**Modules:**\n{"\n".join([f"- {item.name}" for item in items])}"
+            f"**Modules:**\n{'\n'.join([f'- {item.name}' for item in items])}"
         )
 
     embed = hikari.Embed(

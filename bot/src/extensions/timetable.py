@@ -6,11 +6,11 @@ import arc
 import hikari
 import human_readable
 import parsedatetime
+from timetable import api as api_
+from timetable import models, utils
 
 from src import autocomplete
 from src.database import Database
-from timetable import api as api_
-from timetable import models, utils
 
 plugin = arc.GatewayPlugin("timetable")
 
@@ -141,7 +141,9 @@ async def timetable_cmd(
         end_date = start_date + datetime.timedelta(weeks=1)
     elif not start and range_ and range_ == "week":
         now = datetime.datetime.now(datetime.timezone.utc)
-        start_date = datetime.datetime(now.year, now.month, now.day - now.weekday())
+        start_date = datetime.datetime(
+            now.year, now.month, now.day - now.weekday(), tzinfo=datetime.UTC
+        )
         end_date = start_date + datetime.timedelta(weeks=1)
     else:
         range_ = "day"
@@ -192,7 +194,6 @@ async def timetable_cmd(
     }
 
     events = await utils.gather_events(identities, start_date, end_date, api)
-    display_events = utils.EventDisplayData.from_events(events)
 
     if not events:
         if range_ == "week" or range_ is None:
@@ -206,12 +207,12 @@ async def timetable_cmd(
         )
         return
 
-    await ctx.respond(embed=format_events(items, display_events))
+    await ctx.respond(embed=format_events(items, events))
 
 
 def format_events(
-    items: dict[models.CategoryType, list[models.CategoryItem]],
-    events: list[utils.EventDisplayData],
+    items: dict[models.CategoryType, list[models.BasicCategoryItem]],
+    events: list[models.Event],
 ) -> hikari.Embed:
     descriptions = {
         group: [item.name for item in group_items]
@@ -224,23 +225,23 @@ def format_events(
         (models.CategoryType.MODULES, "Modules"),
         (models.CategoryType.LOCATIONS, "Locations"),
     ):
-        if group in descriptions and descriptions[group]:
+        if descriptions.get(group):
             descriptions_list.append(
-                f"**{title}:** {", ".join(descriptions[group])}",
+                f"**{title}:** {', '.join(descriptions[group])}",
             )
 
     embed = hikari.Embed(description="\n".join(descriptions_list))
 
     for date, events_ in itertools.groupby(
-        sorted(events, key=lambda e: e.original_event.start),
-        key=lambda e: e.original_event.start.date(),
+        sorted(events, key=lambda e: e.start),
+        key=lambda e: e.start.date(),
     ):
         formatted_events = [
             (
-                f"> {e.summary_long}\n> 🕑 <t:{int(e.original_event.start.timestamp())}:t>"
-                f"-<t:{int(e.original_event.end.timestamp())}:t> 📍 {e.location}"
+                f"> {e.extras.summary_long}\n> 🕑 <t:{int(e.start.timestamp())}:t>"
+                f"-<t:{int(e.end.timestamp())}:t> 📍 {e.extras.location}"
             )
-            for e in sorted(events_, key=lambda e: e.original_event.start)
+            for e in sorted(events_, key=lambda e: e.start)
         ]
         embed.add_field(date.strftime("%A %d %b"), "\n\n".join(formatted_events))
 

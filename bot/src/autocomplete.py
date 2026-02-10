@@ -1,5 +1,4 @@
 import arc
-
 from timetable import api as api_
 from timetable import models
 
@@ -19,7 +18,8 @@ async def search_categories(
         categories = await api.get_category(
             CATEGORY_TYPES[data.focused_option.name],
             query=data.focused_value,
-            count=10,
+            limit=10,
+            items_type=models.BasicCategoryItem,
         )
         if categories is None:
             return {}
