@@ -7,11 +7,11 @@ license = "MIT"
 authors = [{ name = "nova" }]
 dependencies = [
     "aiohttp>=3.13.3",
-    "fastapi[standard]>=0.128.4",
-    "granian[uvloop]>=2.7.0",
+    "fastapi[standard]>=0.131.0",
+    "granian[uvloop]>=2.7.1",
     "msgspec>=0.20.0",
     "timetable-sync-api",
-    "valkey-glide>=2.2.6",
+    "valkey-glide>=2.2.7",
 ]
 
 [project.urls]
@@ -20,11 +20,11 @@ Repository = "https://github.com/novanai/timetable-sync"
 [dependency-groups]
 dev = [
     "pyright>=1.1.408",
-    "ruff>=0.15.0",
-    "uv>=0.10.0",
+    "ruff>=0.15.2",
+    "uv>=0.10.4",
 ]
 nox = [
-    "nox>=2025.11.12",
+    "nox>=2026.2.9",
 ]
 
 [tool.ruff]

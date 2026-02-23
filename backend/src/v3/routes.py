@@ -67,8 +67,8 @@ async def get_timetable_category_item(
     item_id: Annotated[UUID, Path()],
 ) -> Response:
     item = await timetable_api.get_category_item(
-        str(item_id)
-    ) or await timetable_api.fetch_category_item(category_type.to_model(), str(item_id))
+        item_id
+    ) or await timetable_api.fetch_category_item(category_type.to_model(), item_id)
     return Response(
         content=msgspec.json.encode(item),
         media_type="application/json",
@@ -88,7 +88,7 @@ async def get_timetable_category_item_events(
     if media_type not in {"text/calendar", "application/json"}:
         raise HTTPException(400, "Invalid media type provided.")
 
-    identities = {category_type.to_model(): [str(item_id)]}
+    identities = {category_type.to_model(): [item_id]}
     events = await utils.gather_events(identities, start, end, timetable_api)
 
     if media_type == "text/calendar":
@@ -136,9 +136,9 @@ async def get_timetable_calendar_events(
         raise HTTPException(400, "Invalid media type provided.")
 
     identities = {
-        models.CategoryType.PROGRAMMES_OF_STUDY: [str(id_) for id_ in course],
-        models.CategoryType.MODULES: [str(id_) for id_ in module],
-        models.CategoryType.LOCATIONS: [str(id_) for id_ in location],
+        models.CategoryType.PROGRAMMES_OF_STUDY: course,
+        models.CategoryType.MODULES: module,
+        models.CategoryType.LOCATIONS: location,
     }
 
     events = await utils.gather_events(identities, start, end, timetable_api)
