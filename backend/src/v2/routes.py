@@ -55,9 +55,7 @@ async def get_all_category_items(
         if not items:
             items = await cns_api.fetch_group_items(group_type, query)
 
-        items = [
-            models.BasicCategoryItem(name=item.name, identity=item.id) for item in items
-        ]
+        items = [{"name": item.name, "identity": item.id} for item in items]
 
     return Response(
         content=msgspec.json.encode(items),
