@@ -1,0 +1,89 @@
+@import "tailwindcss";
+@import "react-big-calendar/lib/css/react-big-calendar.css";
+@import "react-tabs/style/react-tabs.css";
+
+@plugin "daisyui" {
+  themes: 
+    winter --default,
+    night --prefersdark,
+    bumblebee,
+    emerald,
+    corporate,
+    forest,
+    dracula
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+.rbc-toolbar button {
+  color: var(--color-base-content) !important;
+  background-color: unset;
+}
+
+.rbc-toolbar button.rbc-active,
+.rbc-toolbar button:hover {
+  color: var(--color-primary-content) !important;
+  background-color: var(--color-primary) !important;
+}
+
+.rbc-toolbar button:focus {
+  background: none;
+}
+
+.react-tabs__tab-list,
+.react-tabs__tab--selected,
+.rbc-toolbar button,
+.rbc-time-view,
+.rbc-time-header-content,
+.rbc-header,
+.rbc-time-content,
+.rbc-timeslot-group,
+.rbc-time-slot,
+.rbc-time-content > * + * > * {
+  border-color: oklch(from var(--color-neutral-content) l c h / 0.25) !important;
+}
+
+.rbc-allday-cell,
+.rbc-event-label {
+  display: none;
+}
+
+.rbc-time-slot {
+  font-size: 14px;
+}
+
+.rbc-event-content p {
+  font-size: 14px;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.rbc-event {
+  border: none !important;
+  color: #000;
+}
+
+.rbc-event:focus {
+  outline: none;
+}
+
+.rbc-today {
+  background-color: oklch(from var(--color-accent) l c h / 0.25);
+}
+
+.rbc-current-time-indicator {
+  background-color: red;
+  z-index: 0;
+}
+
+.react-tabs__tab--selected {
+  color: var(--color-base-content);
+  background-color: var(--color-base-100);
+}
+
+.react-tabs__tab--selected::after {
+  display: none;
+}
