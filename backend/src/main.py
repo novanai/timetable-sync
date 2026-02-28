@@ -122,18 +122,13 @@ app.include_router(v2_router, prefix="/api", tags=["v2"], deprecated=True)
 app.include_router(v3_timetable_router, prefix="/api/v3", tags=["v3"])
 app.include_router(v3_cns_router, prefix="/api/v3", tags=["v3"])
 
-# TODO: for testing only, remove before prod
-origins = [
-    "http://localhost",
-    "http://localhost:3000",
-    "http://localhost:5173",
+ORIGINS = [
     "https://timetable.redbrick.dcu.ie",
-    "https://timetable-test.redbrick.dcu.ie",
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
