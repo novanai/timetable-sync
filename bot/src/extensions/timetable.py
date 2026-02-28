@@ -38,12 +38,12 @@ def str_to_datetime(
         return None
 
     if time_period is TimePeriod.DATE:
-        name = time.strftime("%A %d %b")
+        name = time.strftime("%A %d %b %Y")
         time = time.replace(hour=0, minute=0, second=0, microsecond=0)
         if include_day:
             time += datetime.timedelta(days=1)
     else:
-        name = time.strftime("%H:%M %A %d %b")
+        name = time.strftime("%H:%M %A %d %b %Y")
 
     relative = human_readable.day(time.date(), formatting="")
     if relative:
