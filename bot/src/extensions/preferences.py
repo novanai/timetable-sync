@@ -78,7 +78,7 @@ async def build_response(
                 placeholder="Remove modules",
                 custom_id=f"{InteractionType.MODULE_REMOVE.value}-{user_id}",
                 options=[
-                    miru.SelectOption(label=item.name, value=item.identity)
+                    miru.SelectOption(label=item.name, value=str(item.identity))
                     for item in items
                 ],
             )

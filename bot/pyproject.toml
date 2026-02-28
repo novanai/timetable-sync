@@ -10,10 +10,10 @@ dependencies = [
     "hikari>=2.5.0",
     "hikari-arc>=2.2.0",
     "hikari-miru>=4.2.0",
-    "human-readable>=2.0.0",
+    "human-readable>=2.0.1",
     "parsedatetime>=2.6",
     "timetable-sync-api",
-    "valkey-glide>=2.2.6",
+    "valkey-glide>=2.2.7",
 ]
 
 [project.urls]
@@ -21,14 +21,14 @@ Repository = "https://github.com/novanai/timetable-sync"
 
 [dependency-groups]
 dev = [
-    "asyncpg-stubs>=0.31.1",
+    "asyncpg-stubs>=0.31.2",
     "parsedatetime-stubs",
     "pyright>=1.1.408",
-    "ruff>=0.15.0",
-    "uv>=0.10.0",
+    "ruff>=0.15.4",
+    "uv>=0.10.7",
 ]
 nox = [
-    "nox>=2025.11.12",
+    "nox>=2026.2.9",
 ]
 
 [tool.ruff]
@@ -79,7 +79,7 @@ convention = "numpy"
 required-version = "~=0.10"
 
 [tool.uv.sources]
-timetable-sync-api = { git = "https://github.com/novanai/timetable-sync-api", branch = "v3" }
+timetable-sync-api = { git = "https://github.com/novanai/timetable-sync-api" }
 parsedatetime-stubs = { git = "https://github.com/Sachaa-Thanasius/parsedatetime-stubs" }
 
 [tool.pyright]

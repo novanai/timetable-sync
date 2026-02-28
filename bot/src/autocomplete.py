@@ -24,6 +24,6 @@ async def search_categories(
         if categories is None:
             return {}
 
-        return {item.name: item.identity for item in categories.items}
+        return {item.name: str(item.identity) for item in categories.items}
 
     return {}
