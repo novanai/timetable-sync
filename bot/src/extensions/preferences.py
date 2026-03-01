@@ -204,7 +204,7 @@ async def on_interaction(
                 await conn.execute(
                     "INSERT INTO default_courses (user_id, course_id) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET course_id = $2",
                     inter.user.id,
-                    item.identity,
+                    str(item.identity),
                 )
 
             update_response = True
@@ -219,7 +219,7 @@ async def on_interaction(
                 await conn.execute(
                     "INSERT INTO default_modules (user_id, module_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
                     inter.user.id,
-                    item.identity,
+                    str(item.identity),
                 )
 
             update_response = True
