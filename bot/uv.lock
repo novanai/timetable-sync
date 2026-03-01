@@ -778,7 +778,7 @@ wheels = [
 [[package]]
 name = "timetable-sync-api"
 version = "0.0.0"
-source = { git = "https://github.com/novanai/timetable-sync-api#00ef6d1a03d10fc5494ba2680fff212d3b3aac68" }
+source = { git = "https://github.com/novanai/timetable-sync-api#8e432b7a8fac66d70462ad3172a51e3322b35fd6" }
 dependencies = [
     { name = "aiohttp" },
     { name = "icalendar" },
