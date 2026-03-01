@@ -5,10 +5,10 @@ import enum
 import arc
 import hikari
 import miru
-
-from src.database import Database
 from timetable import api as api_
 from timetable import models, utils
+
+from src.database import Database
 
 plugin = arc.GatewayPlugin("Preferences")
 
@@ -78,13 +78,13 @@ async def build_response(
                 placeholder="Remove modules",
                 custom_id=f"{InteractionType.MODULE_REMOVE.value}-{user_id}",
                 options=[
-                    miru.SelectOption(label=item.name, value=item.identity)
+                    miru.SelectOption(label=item.name, value=str(item.identity))
                     for item in items
                 ],
             )
         )
         embed_description.append(
-            f"**Modules:**\n{"\n".join([f"- {item.name}" for item in items])}"
+            f"**Modules:**\n{'\n'.join([f'- {item.name}' for item in items])}"
         )
 
     embed = hikari.Embed(

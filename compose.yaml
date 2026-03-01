@@ -57,6 +57,7 @@ services:
     depends_on:
       - valkey
       - postgres
+      - cns-api
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
       - VALKEY_HOST=${VALKEY_HOST}
@@ -75,7 +76,7 @@ services:
 
   postgres:
     container_name: postgres
-    image: postgres:17.4
+    image: postgres:17.9
     restart: unless-stopped
     volumes:
       - ./db-data:/var/lib/postgresql/data
