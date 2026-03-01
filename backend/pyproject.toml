@@ -7,7 +7,7 @@ license = "MIT"
 authors = [{ name = "nova" }]
 dependencies = [
     "aiohttp>=3.13.3",
-    "fastapi[standard]>=0.134.0",
+    "fastapi[standard]>=0.135.0",
     "granian[uvloop]>=2.7.2",
     "msgspec>=0.20.0",
     "timetable-sync-api",
