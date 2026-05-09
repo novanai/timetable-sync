@@ -12,4 +12,9 @@ RUN uv sync --frozen
 
 COPY src src
 
-CMD ["uv", "run", "granian", "--interface", "asgi", "src.main:app", "--loop", "uvloop", "--workers", "4", "--host", "0.0.0.0", "--port", "2000"]
+ENV PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+CMD ["/entrypoint.sh"]
