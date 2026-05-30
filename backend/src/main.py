@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import logging
 import os
-import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Awaitable, Callable
 
@@ -15,11 +14,15 @@ from timetable.cns import API as CNSAPI
 from timetable.cns import GroupType
 from timetable.models import BasicCategoryItem, CategoryType
 
+from src import metrics
+from src.metrics import router as metrics_router
 from src.v2.routes import router as v2_router
 from src.v3.routes import cns_router as v3_cns_router
 from src.v3.routes import timetable_router as v3_timetable_router
 
 logger = logging.getLogger(__name__)
+
+CACHE_READY = asyncio.Event()
 
 
 async def load_all_categories_to_cache(
@@ -56,6 +59,7 @@ async def populate_cache(timetable_api: TimetableAPI, cns_api: CNSAPI) -> None:
     client = timetable_api.cache.client
 
     if await client.exists(["cache_ready"]):
+        CACHE_READY.set()
         logger.info("cache ready")
         return
 
@@ -76,13 +80,17 @@ async def populate_cache(timetable_api: TimetableAPI, cns_api: CNSAPI) -> None:
                     glide.ExpiryType.SEC, datetime.timedelta(days=1)
                 ),
             )
+
+            CACHE_READY.set()
+
         finally:
             await client.delete(["cache_loading"])
+
         return
+
     logger.info("waiting for cache")
 
-    while not await client.exists(["cache_ready"]):
-        await asyncio.sleep(0.2)
+    await CACHE_READY.wait()
 
     logger.info("cache ready")
 
@@ -121,6 +129,7 @@ app = FastAPI(
 app.include_router(v2_router, prefix="/api", tags=["v2"], deprecated=True)
 app.include_router(v3_timetable_router, prefix="/api/v3", tags=["v3"])
 app.include_router(v3_cns_router, prefix="/api/v3", tags=["v3"])
+app.include_router(metrics_router, prefix="/api", tags=["metrics"])
 
 ORIGINS = [
     "https://timetable.redbrick.dcu.ie",
@@ -136,6 +145,7 @@ app.add_middleware(
 
 
 @app.get("/api/healthcheck")
+@metrics.REQUEST_LATENCY.labels(endpoint="healthcheck", used_cache=None).time()
 async def healthcheck() -> str:
     return ":3"
 
@@ -144,13 +154,6 @@ async def healthcheck() -> str:
 async def log_request_process_times(
     request: Request, call_next: Callable[[Request], Awaitable[Response]]
 ) -> Response:
-    start_time = time.perf_counter()
     response = await call_next(request)
-    end_time = time.perf_counter()
-    execution_time_ms = (end_time - start_time) * 1000
-
-    logger.info(
-        f"request to '{request.url.path}{f'?{request.url.query}' if request.url.query else ''}' took {execution_time_ms:.4f} ms"
-    )
-
+    metrics.USER_AGENT_COUNT.labels(user_agent=request.headers["User-Agent"]).inc()
     return response

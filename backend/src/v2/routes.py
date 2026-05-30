@@ -1,5 +1,6 @@
 import collections
 import datetime
+import time
 from typing import Annotated
 
 import msgspec
@@ -8,6 +9,7 @@ from timetable import cns, models, utils
 from timetable.api import API as TimetableAPI  # noqa: N811
 from timetable.cns import API as CNSAPI
 
+from src import metrics
 from src.dependencies import get_cns_api, get_timetable_api
 
 router = APIRouter()
@@ -31,6 +33,8 @@ async def get_all_category_items(
     category_type: Annotated[str, Path()],
     query: Annotated[str | None, Query()] = None,
 ) -> Response:
+    start = time.perf_counter()
+
     if category_type not in ("course", "module", "location", "club", "society"):
         raise HTTPException(status_code=400, detail="Invalid value provided.")
 
@@ -57,8 +61,15 @@ async def get_all_category_items(
 
         items = [{"name": item.name, "identity": item.id} for item in items]
 
+    data = msgspec.json.encode(items)
+
+    duration = time.perf_counter() - start
+    metrics.REQUEST_LATENCY.labels(
+        endpoint="/v2/all/:category_type", used_cache=None
+    ).observe(duration)
+
     return Response(
-        content=msgspec.json.encode(items),
+        content=data,
         media_type="application/json",
     )
 
@@ -130,6 +141,8 @@ async def get_calendar_events(
         ),
     ] = None,
 ) -> Response:
+    start_ = time.perf_counter()
+
     if _format is None:
         _format = "ical"
 
@@ -169,8 +182,17 @@ async def get_calendar_events(
             media_type="text/calendar",
         )
     assert _format == "json"
+
+    data = msgspec.json.encode(events)
+
+    duration = time.perf_counter() - start_
+    metrics.REQUEST_LATENCY.labels(endpoint="/v2/", used_cache=None).observe(duration)
+    metrics.EVENTS_COUNT.labels(
+        category_type=",".join(sorted([category_type.name for category_type in codes]))
+    ).observe(len(events))
+
     return Response(
-        content=msgspec.json.encode(events),
+        content=data,
         media_type="application/json",
     )
 
@@ -181,6 +203,8 @@ async def get_cns_calendar_events(
     societies: Annotated[str | None, Query()] = None,
     clubs: Annotated[str | None, Query()] = None,
 ) -> Response:
+    start = time.perf_counter()
+
     if not (societies or clubs):
         raise HTTPException(status_code=400, detail="No societies or clubs provided.")
 
@@ -209,6 +233,11 @@ async def get_cns_calendar_events(
             events[item.name].extend(events_)
 
     calendar = cns.generate_ical_file(events)
+
+    duration = time.perf_counter() - start
+    metrics.REQUEST_LATENCY.labels(endpoint="/v2/cns", used_cache=None).observe(
+        duration
+    )
 
     return Response(
         content=calendar,
