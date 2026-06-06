@@ -2,6 +2,7 @@ import collections
 import datetime
 import enum
 import logging
+import time
 from typing import Annotated
 from uuid import UUID
 
@@ -11,6 +12,7 @@ from timetable import cns, models, utils
 from timetable.api import API as TimetableAPI  # noqa: N811
 from timetable.cns import API as CNSAPI
 
+from src import metrics
 from src.dependencies import get_cns_api, get_timetable_api
 
 logger = logging.getLogger(__name__)
@@ -46,16 +48,27 @@ async def get_timetable_category_items(
     category_type: Annotated[CategoryType, Path()],
     query: Annotated[str | None, Query()] = None,
 ) -> Response:
+    start = time.perf_counter()
+    used_cache: bool = True
+
     category = await timetable_api.get_category(
         category_type.to_model(), query=query, items_type=models.BasicCategoryItem
     )
     if not category:
+        used_cache = False
         category = await timetable_api.fetch_category(
             category_type.to_model(), query=query, items_type=models.BasicCategoryItem
         )
 
+    data = msgspec.json.encode(category.items)
+
+    duration = time.perf_counter() - start
+    metrics.REQUEST_LATENCY.labels(
+        endpoint="/v3/timetable/category/:category_type/items", used_cache=used_cache
+    ).observe(duration)
+
     return Response(
-        content=msgspec.json.encode(category.items),
+        content=data,
         media_type="application/json",
     )
 
@@ -66,11 +79,24 @@ async def get_timetable_category_item(
     category_type: Annotated[CategoryType, Path()],
     item_id: Annotated[UUID, Path()],
 ) -> Response:
-    item = await timetable_api.get_category_item(
-        item_id
-    ) or await timetable_api.fetch_category_item(category_type.to_model(), item_id)
+    start = time.perf_counter()
+    used_cache: bool = True
+
+    item = await timetable_api.get_category_item(item_id)
+    if not item:
+        used_cache = False
+        await timetable_api.fetch_category_item(category_type.to_model(), item_id)
+
+    data = msgspec.json.encode(item)
+
+    duration = time.perf_counter() - start
+    metrics.REQUEST_LATENCY.labels(
+        endpoint="/v3/timetable/category/:category_type/items/:item_id",
+        used_cache=used_cache,
+    ).observe(duration)
+
     return Response(
-        content=msgspec.json.encode(item),
+        content=data,
         media_type="application/json",
     )
 
@@ -85,6 +111,8 @@ async def get_timetable_category_item_events(
     extra_details: Annotated[ExtraDetails, Query()] = ExtraDetails.NONE,
     media_type: Annotated[str, Header()] = "text/calendar",
 ) -> Response:
+    start_ = time.perf_counter()
+
     if media_type not in {"text/calendar", "application/json"}:
         raise HTTPException(400, "Invalid media type provided.")
 
@@ -98,6 +126,24 @@ async def get_timetable_category_item_events(
         # TODO: handle extra_details
         # display = extra_details is ExtraDetails.ALL
         timetable = msgspec.json.encode(events)
+
+    duration = time.perf_counter() - start_
+    metrics.REQUEST_LATENCY.labels(
+        endpoint="/v3/timetable/category/:category_type/items/:item_id/events",
+        used_cache=None,
+    ).observe(duration)
+    metrics.EVENTS_CATEGORY_IDENTITY_COUNT.labels(
+        name=(
+            await timetable_api.get_category_item(item_id)
+            or await timetable_api.fetch_category_item(
+                category_type.to_model(), item_id
+            )
+        ).name,
+        identity=item_id,
+    ).inc()
+    metrics.EVENTS_COUNT.labels(category_type=category_type.to_model().name).observe(
+        len(events)
+    )
 
     return Response(
         content=timetable,
@@ -127,6 +173,7 @@ async def get_timetable_calendar_events(
     extra_details: Annotated[ExtraDetails, Query()] = ExtraDetails.NONE,
     media_type: Annotated[str, Header()] = "text/calendar",
 ) -> Response:
+    start_ = time.perf_counter()
     if not course and not module and not location:
         raise HTTPException(
             status_code=400, detail="No course(s), module(s) or location(s) provided."
@@ -151,6 +198,27 @@ async def get_timetable_calendar_events(
         # display = extra_details is ExtraDetails.ALL
         timetable = msgspec.json.encode(events)
 
+    duration = time.perf_counter() - start_
+    metrics.REQUEST_LATENCY.labels(
+        endpoint="/v3/timetable/events", used_cache=None
+    ).observe(duration)
+    for category_type, ids in identities.items():
+        for item_id in ids:
+            metrics.EVENTS_CATEGORY_IDENTITY_COUNT.labels(
+                name=(
+                    await timetable_api.get_category_item(item_id)
+                    or await timetable_api.fetch_category_item(category_type, item_id)
+                ).name,
+                identity=item_id,
+            ).inc()
+    metrics.EVENTS_COUNT.labels(
+        category_type=",".join(
+            sorted(
+                [category_type.name for category_type, ids in identities.items() if ids]
+            )
+        )
+    ).observe(len(events))
+
     return Response(
         content=timetable,
         media_type=media_type,
@@ -166,12 +234,23 @@ async def get_cns_category_items(
     category_type: Annotated[cns.GroupType, Path()],
     query: Annotated[str | None, Query()] = None,
 ) -> Response:
+    start = time.perf_counter()
+    used_cache: bool = True
+
     items = await cns_api.get_group_items(category_type, query)
     if not items:
+        used_cache = False
         items = await cns_api.fetch_group_items(category_type, query)
 
+    data = msgspec.json.encode(items)
+
+    duration = time.perf_counter() - start
+    metrics.REQUEST_LATENCY.labels(
+        endpoint="/v3/cns/category/:category_type/items", used_cache=used_cache
+    ).observe(duration)
+
     return Response(
-        content=msgspec.json.encode(items),
+        content=data,
         media_type="application/json",
     )
 
@@ -182,12 +261,23 @@ async def get_cns_category_item(
     category_type: Annotated[cns.GroupType, Path()],
     item_id: Annotated[str, Path()],
 ) -> Response:
+    start = time.perf_counter()
+    used_cache: bool = True
+
     item = await cns_api.get_item(item_id)
     if not item:
+        used_cache = False
         item = await cns_api.fetch_item(category_type, item_id)
 
+    data = msgspec.json.encode(item)
+
+    duration = time.perf_counter() - start
+    metrics.REQUEST_LATENCY.labels(
+        endpoint="/v3/cns/category/:category_type/items/:item_id", used_cache=used_cache
+    ).observe(duration)
+
     return Response(
-        content=msgspec.json.encode(item),
+        content=data,
         media_type="application/json",
     )
 
@@ -200,6 +290,8 @@ async def get_cns_calendar_events(
     society: Annotated[list[str], Query()] = [],
     club: Annotated[list[str], Query()] = [],
 ) -> Response:
+    start = time.perf_counter()
+
     if not (society or club):
         raise HTTPException(
             status_code=400, detail="No club(s) or society(s) provided."
@@ -227,6 +319,11 @@ async def get_cns_calendar_events(
             events[item.name].extend(events_)
 
     calendar = cns.generate_ical_file(events)
+
+    duration = time.perf_counter() - start
+    metrics.REQUEST_LATENCY.labels(endpoint="/v3/cns/events", used_cache=None).observe(
+        duration
+    )
 
     return Response(
         content=calendar,
