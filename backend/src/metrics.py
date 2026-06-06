@@ -23,6 +23,12 @@ USER_AGENT_COUNT = Counter(
     labelnames=["user_agent"],
 )
 
+EVENTS_CATEGORY_IDENTITY_COUNT = Counter(
+    "events_category_identity_counter",
+    "Events category identity counts",
+    labelnames=["name", "identity"],
+)
+
 EVENTS_COUNT = Histogram(
     "events_per_request",
     "Number of events per request",

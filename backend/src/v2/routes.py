@@ -187,6 +187,15 @@ async def get_calendar_events(
 
     duration = time.perf_counter() - start_
     metrics.REQUEST_LATENCY.labels(endpoint="/v2/", used_cache=None).observe(duration)
+    for category_type, ids in identities.items():
+        for item_id in ids:
+            metrics.EVENTS_CATEGORY_IDENTITY_COUNT.labels(
+                name=(
+                    await timetable_api.get_category_item(item_id)
+                    or await timetable_api.fetch_category_item(category_type, item_id)
+                ).name,
+                identity=item_id,
+            ).inc()
     metrics.EVENTS_COUNT.labels(
         category_type=",".join(sorted([category_type.name for category_type in codes]))
     ).observe(len(events))

@@ -132,6 +132,15 @@ async def get_timetable_category_item_events(
         endpoint="/v3/timetable/category/:category_type/items/:item_id/events",
         used_cache=None,
     ).observe(duration)
+    metrics.EVENTS_CATEGORY_IDENTITY_COUNT.labels(
+        name=(
+            await timetable_api.get_category_item(item_id)
+            or await timetable_api.fetch_category_item(
+                category_type.to_model(), item_id
+            )
+        ).name,
+        identity=item_id,
+    ).inc()
     metrics.EVENTS_COUNT.labels(category_type=category_type.to_model().name).observe(
         len(events)
     )
@@ -193,6 +202,15 @@ async def get_timetable_calendar_events(
     metrics.REQUEST_LATENCY.labels(
         endpoint="/v3/timetable/events", used_cache=None
     ).observe(duration)
+    for category_type, ids in identities.items():
+        for item_id in ids:
+            metrics.EVENTS_CATEGORY_IDENTITY_COUNT.labels(
+                name=(
+                    await timetable_api.get_category_item(item_id)
+                    or await timetable_api.fetch_category_item(category_type, item_id)
+                ).name,
+                identity=item_id,
+            ).inc()
     metrics.EVENTS_COUNT.labels(
         category_type=",".join(
             sorted(
