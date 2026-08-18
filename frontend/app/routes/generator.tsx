@@ -87,24 +87,14 @@ export default function Timetable() {
     const [courseOptions, setCourseOptions] = useState<readonly Option[]>([]);
     const [moduleOptions, setModuleOptions] = useState<readonly Option[]>([]);
     const [locationOptions, setLocationOptions] = useState<readonly Option[]>([]);
-    const [clubOptions, setClubOptions] = useState<readonly Option[]>([]);
-    const [societyOptions, setSocietyOptions] = useState<readonly Option[]>([]);
 
     const [timetableURL, setTimetableURL] = useState<string>("");
-    const [cnsURL, setCnsURL] = useState<string>("");
-
     const [timetableCopied, setTimetableCopied] = useState<boolean>(false);
-    const [cnsCopied, setCnsCopied] = useState<boolean>(false);
 
     const timetable_selects: Array<SelectConfig> = [
         { id: "course", value: courseOptions, setValue: setCourseOptions },
         { id: "module", value: moduleOptions, setValue: setModuleOptions },
         { id: "location", value: locationOptions, setValue: setLocationOptions },
-    ]
-
-    const cns_selects: Array<SelectConfig> = [
-        { id: "club", value: clubOptions, setValue: setClubOptions },
-        { id: "society", value: societyOptions, setValue: setSocietyOptions },
     ]
 
     useEffect(() => {
@@ -116,22 +106,8 @@ export default function Timetable() {
             })
         })
 
-
         setTimetableURL(`${window.location.protocol}//${window.location.hostname}/api/v3/timetable/events?${params.toString()}`)
     }, [courseOptions, moduleOptions, locationOptions]);
-
-    useEffect(() => {
-        const params = new URLSearchParams();
-
-        cns_selects.map(({ id, value }) => {
-            value.map(({ value }) => {
-                params.append(id, value);
-            })
-        })
-
-
-        setCnsURL(`${window.location.protocol}//${window.location.hostname}/api/v3/cns/events?${params.toString()}`)
-    }, [clubOptions, societyOptions]);
 
     const handleCopy = async (elementId: string, setValue: React.Dispatch<React.SetStateAction<boolean>>) => {
         const el = document.getElementById(elementId);
@@ -193,58 +169,9 @@ export default function Timetable() {
                 onClick={() => handleCopy("timetable-url", setTimetableCopied)}
             >
                 <span className="inline-flex items-center gap-1"><FaClipboard size={16} /> {timetableCopied ? "Copied!" : "Copy URL"}</span>
-                
             </button>
             <div id="timetable-url" className="mb-8">
                 {timetableURL}
-            </div>
-
-            <h1 className="text-2xl font-bold mb-2">Clubs & Societies</h1>
-            <Tabs className="mb-4">
-                <TabList>
-                    <Tab>Clubs</Tab>
-                    <Tab>Societies</Tab>
-                </TabList>
-
-                {cns_selects.map(({ id, value, setValue }) => {
-                    const loadOptions = useMemo(
-                        () => createLoadOptions("cns", id),
-                        [id]
-                    );
-                    return (
-                        <TabPanel key={id}>
-                            <AsyncSelect
-                                isMulti
-                                name={`select-${id}`}
-                                cacheOptions
-                                loadOptions={loadOptions}
-                                value={value}
-                                onChange={setValue}
-                                placeholder={`Choose ${id}...`}
-                                noOptionsMessage={noOptionsMessage(id)}
-                                styles={{
-                                    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-                                }}
-                                theme={(theme) => ({
-                                    ...theme,
-                                    colors: {
-                                        ...theme.colors,
-                                        ...select_colours,
-                                    },
-                                })}
-                            />
-                        </TabPanel>
-                    )
-                })}
-            </Tabs>
-            <button
-                className={`btn btn-sm mb-2 ${cnsCopied ? "btn-success" : "btn-primary"}`}
-                onClick={() => handleCopy("cns-url", setCnsCopied)}
-            >
-                <span className="inline-flex items-center gap-1"><FaClipboard size={16} /> {cnsCopied ? "Copied!" : "Copy URL"}</span>
-            </button>
-            <div id="cns-url" className="mb-8">
-                {cnsURL}
             </div>
         </div>
     );

@@ -99,7 +99,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 OPENAPI_TAGS = [
     {"name": "v3", "description": "Latest"},
-    {"name": "v2", "description": "Deprecated"},
 ]
 
 app = FastAPI(
