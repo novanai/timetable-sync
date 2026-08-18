@@ -1,7 +1,7 @@
 [project]
 name = "timetable-sync-backend"
 description = "TimetableSync API"
-dynamic = ["version"]
+version = "v3.2.0"
 requires-python = ">=3.13"
 license = "MIT"
 authors = [{ name = "nova" }]

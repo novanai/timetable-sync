@@ -10,14 +10,10 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from timetable.api import API as TimetableAPI  # noqa: N811
 from timetable.cache import ValkeyCache
-from timetable.cns import API as CNSAPI
-from timetable.cns import GroupType
 from timetable.models import BasicCategoryItem, CategoryType
 
 from src import metrics
 from src.metrics import router as metrics_router
-from src.v2.routes import router as v2_router
-from src.v3.routes import cns_router as v3_cns_router
 from src.v3.routes import timetable_router as v3_timetable_router
 
 logger = logging.getLogger(__name__)
@@ -25,9 +21,7 @@ logger = logging.getLogger(__name__)
 CACHE_READY = asyncio.Event()
 
 
-async def load_all_categories_to_cache(
-    timetable_api: TimetableAPI, cns_api: CNSAPI
-) -> None:
+async def load_all_categories_to_cache(timetable_api: TimetableAPI) -> None:
     for category_type in (
         CategoryType.PROGRAMMES_OF_STUDY,
         CategoryType.MODULES,
@@ -46,16 +40,8 @@ async def load_all_categories_to_cache(
 
     logger.info("loaded all timetable categories")
 
-    for group_type in (GroupType.CLUB, GroupType.SOCIETY):
-        logger.info(f"loading cns category '{group_type.name}'")
 
-        if not (await cns_api.get_group_items(group_type)):
-            await cns_api.fetch_group_items(group_type)
-
-    logger.info("loaded all cns categories")
-
-
-async def populate_cache(timetable_api: TimetableAPI, cns_api: CNSAPI) -> None:
+async def populate_cache(timetable_api: TimetableAPI) -> None:
     client = timetable_api.cache.client
 
     if await client.exists(["cache_ready"]):
@@ -72,7 +58,7 @@ async def populate_cache(timetable_api: TimetableAPI, cns_api: CNSAPI) -> None:
 
     if got_lock:
         try:
-            await load_all_categories_to_cache(timetable_api, cns_api)
+            await load_all_categories_to_cache(timetable_api)
             await client.set(
                 "cache_ready",
                 "1",
@@ -101,17 +87,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         os.environ["VALKEY_HOST"], int(os.environ["VALKEY_PORT"])
     )
     timetable_api = TimetableAPI(valkey_cache)
-    cns_api = CNSAPI(os.environ["CNS_ADDRESS"], valkey_cache)
 
-    await populate_cache(timetable_api, cns_api)
+    await populate_cache(timetable_api)
 
     app.state.timetable_api = timetable_api
-    app.state.cns_api = cns_api
 
     yield
 
     await timetable_api.session.close()
-    await cns_api.session.close()
 
 
 OPENAPI_TAGS = [
@@ -126,9 +109,7 @@ app = FastAPI(
     redoc_url=None,
     openapi_url="/api/openapi.json",
 )
-app.include_router(v2_router, prefix="/api", tags=["v2"], deprecated=True)
 app.include_router(v3_timetable_router, prefix="/api/v3", tags=["v3"])
-app.include_router(v3_cns_router, prefix="/api/v3", tags=["v3"])
 app.include_router(metrics_router, prefix="/api", tags=["metrics"])
 
 ORIGINS = [
